@@ -229,6 +229,52 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
         return self.as_dict(include_id) == other.as_dict(include_id)
 
 
+class InstructionBase(ABC):
+    """Base class for Instructions."""
+
+    _action_factory = None
+
+    def as_dict(self):
+        """Return this instruction as a dict."""
+        return vars(self)
+
+    @classmethod
+    def from_dict(cls, instruction_dict):
+        """Return an action instance from attributes in a dictionary."""
+        instruction = cls(None)
+        for attr_name, value in instruction_dict.items():
+            if hasattr(instruction, attr_name):
+                if attr_name == 'actions':
+                    value = [cls._action_factory.from_dict(action_dict)
+                             for action_dict in value]
+                setattr(instruction, attr_name, value)
+        return instruction
+
+
+class InstructionFactoryBase(ABC):
+    """Deal with different instruction implementations."""
+
+    _instruction_class = {
+        'apply_actions': None
+    }
+
+    @classmethod
+    def from_dict(cls, instruction_dict):
+        """Build the proper instruction from a dictionary."""
+        instruction = instruction_dict.get('instruction_type')
+        instruction_class = cls._instruction_class[instruction]
+        return instruction_class.from_dict(instruction_dict) \
+            if instruction_class else None
+
+    @classmethod
+    def from_of_instruction(cls, of_instruction):
+        """Build the proper instruction from a dictionary."""
+        instruction = type(of_instruction)
+        instruction_class = cls._instruction_class[instruction]
+        return instruction_class.from_of_instruction(of_instruction) \
+            if instruction_class else None
+
+
 class ActionBase(ABC):
     """Base class for a flow action."""
 
