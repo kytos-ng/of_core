@@ -335,10 +335,40 @@ class Flow(FlowBase):
     _flow_mod_class = FlowMod
     _match_class = Match
 
-    def __init__(self, *args, cookie_mask=0, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Require a cookie mask."""
+        cookie_mask = kwargs.pop('cookie_mask', 0)
+        instructions = kwargs.pop('instructions', None)
         super().__init__(*args, **kwargs)
         self.cookie_mask = cookie_mask
+        self.instructions = instructions or []
+
+    def as_dict(self, include_id=True):
+        """Return a representation of a Flow as a dictionary."""
+        flow_dict = super().as_dict(include_id=include_id)
+        flow_dict['cookie_mask'] = self.cookie_mask
+        flow_dict['instructions'] = [instruction.as_dict() for
+                                     instruction in self.instructions]
+        return flow_dict
+
+    @classmethod
+    def from_dict(cls, flow_dict, switch):
+        """Create a Flow instance from a dictionary."""
+        flow = super().from_dict(flow_dict, switch)
+        flow.instructions = []
+        if 'actions' in flow_dict:
+            instruction_apply_actions = InstructionApplyAction()
+            for action_dict in flow_dict['actions']:
+                action = cls._action_factory.from_dict(action_dict)
+                if action:
+                    instruction_apply_actions.actions.append(action)
+            flow.instructions.append(instruction_apply_actions)
+        if 'instructions' in flow_dict:
+            for instruction_dict in flow_dict['instructions']:
+                instruction = Instruction.from_dict(instruction_dict)
+                if instruction:
+                    flow.instructions.append(instruction)
+        return flow
 
     @staticmethod
     def _get_of_actions(of_flow_stats):
@@ -358,7 +388,15 @@ class Flow(FlowBase):
         """
         of_flow_mod = super()._as_of_flow_mod(command)
         of_flow_mod.cookie_mask = self.cookie_mask
-        of_actions = [action.as_of_action() for action in self.actions]
-        of_instruction = InstructionApplyAction(actions=of_actions)
-        of_flow_mod.instructions = [of_instruction]
+        of_flow_mod.instructions = [instruction.as_of_instruction() for
+                                    instruction in self.instructions]
         return of_flow_mod
+
+    @classmethod
+    def from_of_flow_stats(cls, of_flow_stats, switch):
+        """Create a flow with latest stats based on pyof FlowStats."""
+        instructions = [Instruction.from_of_instruction(of_instruction)
+                        for of_instruction in of_flow_stats.instructions]
+        flow = super().from_of_flow_stats(of_flow_stats, switch)
+        flow.instructions = instructions
+        return flow

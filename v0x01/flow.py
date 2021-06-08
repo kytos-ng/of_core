@@ -105,6 +105,31 @@ class Flow(FlowBase):
     _flow_mod_class = FlowMod
     _match_class = Match
 
+    def __init__(self, *args, **kwargs):
+        """Create a flow with actions."""
+        actions = kwargs.pop('actions', None)
+        super().__init__(*args, **kwargs)
+        self.actions = actions or []
+
+    def as_dict(self, include_id=True):
+        """Representation of this flow as a dictionary."""
+        flow_dict = super().as_dict(include_id=include_id)
+        flow_dict['actions'] = [action.as_dict() for action in self.actions]
+
+        return flow_dict
+
+    @classmethod
+    def from_dict(cls, flow_dict, switch):
+        """Create a flow from a dictionary."""
+        flow = super().from_dict(flow_dict, switch)
+        if 'actions' in flow_dict:
+            flow.actions = []
+            for action_dict in flow_dict['actions']:
+                action = cls._action_factory.from_dict(action_dict)
+                if action:
+                    flow.actions.append(action)
+        return flow
+
     @staticmethod
     def _get_of_actions(of_flow_stats):
         """Return the pyof actions from pyof ``FlowStats.actions``."""
@@ -115,3 +140,14 @@ class Flow(FlowBase):
         flow_mod = super()._as_of_flow_mod(command)
         flow_mod.actions = [action.as_of_action() for action in self.actions]
         return flow_mod
+
+    @classmethod
+    def from_of_flow_stats(cls, of_flow_stats, switch):
+        """Create a flow with latest stats based on pyof FlowStats."""
+        of_actions = cls._get_of_actions(of_flow_stats)
+        actions = (cls._action_factory.from_of_action(of_action)
+                   for of_action in of_actions)
+        non_none_actions = [action for action in actions if action]
+        flow = super().from_of_flow_stats(of_flow_stats, switch)
+        flow.actions = non_none_actions
+        return flow
