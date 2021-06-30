@@ -180,6 +180,10 @@ class Action(ActionFactoryBase):
 
     @classmethod
     def add_action_class(cls, class_name, new_class):
+        """Add a new action.
+
+        To be used by modules implementing Experimenter Actions.
+        """
         cls._action_class[class_name] = new_class
 
 
