@@ -178,6 +178,14 @@ class Action(ActionFactoryBase):
         OFActionSetQueue: ActionSetQueue
     }
 
+    @classmethod
+    def add_action_class(cls, class_name, new_class):
+        """Add a new action.
+
+        To be used by modules implementing Experimenter Actions.
+        """
+        cls._action_class[class_name] = new_class
+
 
 class Flow(FlowBase):
     """High-level flow representation for OpenFlow 1.0.
