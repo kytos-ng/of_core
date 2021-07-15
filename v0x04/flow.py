@@ -8,15 +8,28 @@ from pyof.v0x04.common.action import ActionPush as OFActionPush
 from pyof.v0x04.common.action import ActionSetField as OFActionSetField
 from pyof.v0x04.common.action import ActionSetQueue as OFActionSetQueue
 from pyof.v0x04.common.action import ActionType
-from pyof.v0x04.common.flow_instructions import (InstructionApplyAction,
-                                                 InstructionType)
+from pyof.v0x04.common.flow_instructions import \
+    InstructionApplyAction as OFInstructionApplyAction
+from pyof.v0x04.common.flow_instructions import \
+    InstructionClearAction as OFInstructionClearAction
+from pyof.v0x04.common.flow_instructions import \
+    InstructionGotoTable as OFInstructionGotoTable
+from pyof.v0x04.common.flow_instructions import \
+    InstructionMeter as OFInstructionMeter
+from pyof.v0x04.common.flow_instructions import InstructionType
+from pyof.v0x04.common.flow_instructions import \
+    InstructionWriteAction as OFInstructionWriteAction
+from pyof.v0x04.common.flow_instructions import \
+    InstructionWriteMetadata as OFInstructionWriteMetadata
 from pyof.v0x04.common.flow_match import Match as OFMatch
 from pyof.v0x04.common.flow_match import (OxmMatchFields, OxmOfbMatchField,
                                           OxmTLV, VlanId)
 from pyof.v0x04.controller2switch.flow_mod import FlowMod
 
 from napps.kytos.of_core.flow import (ActionBase, ActionFactoryBase, FlowBase,
-                                      FlowStats, MatchBase, PortStats)
+                                      FlowStats, InstructionBase,
+                                      InstructionFactoryBase, MatchBase,
+                                      PortStats)
 from napps.kytos.of_core.v0x04.match_fields import MatchFieldFactory
 
 __all__ = ('ActionOutput', 'ActionSetVlan', 'ActionSetQueue', 'ActionPushVlan',
@@ -187,6 +200,131 @@ class Action(ActionFactoryBase):
         cls._action_class[class_name] = new_class
 
 
+class InstructionAction(InstructionBase):
+    """Base class for instruction dealing with actions."""
+
+    _action_factory = Action
+    _instruction_type = None
+    _of_instruction_class = None
+
+    def __init__(self, actions=None):
+        self.instruction_type = self._instruction_type
+        self.actions = actions or []
+
+    def as_dict(self):
+        instruction_dict = {'instruction_type': self.instruction_type}
+        instruction_dict['actions'] = [action.as_dict()
+                                       for action in self.actions]
+        return instruction_dict
+
+    @classmethod
+    def from_of_instruction(cls, of_instruction):
+        """Create high-level Instruction from pyof Instruction."""
+        actions = [Action.from_of_action(of_action)
+                   for of_action in of_instruction.actions]
+        return cls(actions)
+
+    def as_of_instruction(self):
+        """Return a pyof Instruction instance."""
+        of_actions = [action.as_of_action() for action in self.actions]
+        # Disable not-callable error as subclasses will set a class
+        # pylint: disable=not-callable
+        return self._of_instruction_class(of_actions)
+
+
+class InstructionApplyAction(InstructionAction):
+    """Instruct switch to apply the actions."""
+
+    _instruction_type = 'apply_actions'
+    _of_instruction_class = OFInstructionApplyAction
+
+
+class InstructionClearAction(InstructionAction):
+    """Instruct switch to clear the actions."""
+
+    _instruction_type = 'clear_actions'
+    _of_instruction_class = OFInstructionClearAction
+
+
+class InstructionWriteAction(InstructionAction):
+    """Instruct switch to write the actions."""
+
+    _instruction_type = 'write_actions'
+    _of_instruction_class = OFInstructionWriteAction
+
+
+class InstructionGotoTable(InstructionBase):
+    """Instruct the switch to move to another table."""
+
+    def __init__(self, table_id=0):
+        self.instruction_type = 'goto_table'
+        self.table_id = table_id
+
+    @classmethod
+    def from_of_instruction(cls, of_instruction):
+        """Create high-level Instruction from pyof Instruction."""
+        return cls(table_id=of_instruction.table_id.value)
+
+    def as_of_instruction(self):
+        """Return a pyof Instruction instance."""
+        return OFInstructionGotoTable(self.table_id)
+
+
+class InstructionMeter(InstructionBase):
+    """Instruct the switch to apply a meter."""
+
+    def __init__(self, meter_id=0):
+        self.instruction_type = 'meter'
+        self.meter_id = meter_id
+
+    @classmethod
+    def from_of_instruction(cls, of_instruction):
+        """Create high-level Instruction from pyof Instruction."""
+        return cls(meter_id=of_instruction.meter_id.value)
+
+    def as_of_instruction(self):
+        """Return a pyof Instruction instance."""
+        return OFInstructionMeter(self.meter_id)
+
+
+class InstructionWriteMetadata(InstructionBase):
+    """Instruct the switch to write metadata."""
+
+    def __init__(self, metadata=0, metadata_mask=0):
+        self.instruction_type = 'write_metadata'
+        self.metadata = metadata
+        self.metadata_mask = metadata_mask
+
+    @classmethod
+    def from_of_instruction(cls, of_instruction):
+        """Create high-level Instruction from pyof Instruction."""
+        return cls(metadata=of_instruction.metadata.value,
+                   metadata_mask=of_instruction.metadata_mask.value)
+
+    def as_of_instruction(self):
+        """Return a pyof Instruction instance."""
+        return OFInstructionWriteMetadata(self.metadata, self.metadata_mask)
+
+
+class Instruction(InstructionFactoryBase):
+    """An instruction the flow executes."""
+
+    _instruction_class = {
+        'apply_actions': InstructionApplyAction,
+        OFInstructionApplyAction: InstructionApplyAction,
+        'clear_actions': InstructionClearAction,
+        OFInstructionClearAction: InstructionClearAction,
+        'goto_table': InstructionGotoTable,
+        OFInstructionGotoTable: InstructionGotoTable,
+        'meter': InstructionMeter,
+        OFInstructionMeter: InstructionMeter,
+        'write_actions': InstructionWriteAction,
+        OFInstructionWriteAction: InstructionWriteAction,
+        'write_metadata': InstructionWriteMetadata,
+        OFInstructionWriteMetadata: InstructionWriteMetadata
+    }
+
+
 class Flow(FlowBase):
     """High-level flow representation for OpenFlow 1.0.
 
@@ -197,10 +335,40 @@ class Flow(FlowBase):
     _flow_mod_class = FlowMod
     _match_class = Match
 
-    def __init__(self, *args, cookie_mask=0, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Require a cookie mask."""
+        cookie_mask = kwargs.pop('cookie_mask', 0)
+        instructions = kwargs.pop('instructions', None)
         super().__init__(*args, **kwargs)
         self.cookie_mask = cookie_mask
+        self.instructions = instructions or []
+
+    def as_dict(self, include_id=True):
+        """Return a representation of a Flow as a dictionary."""
+        flow_dict = super().as_dict(include_id=include_id)
+        flow_dict['cookie_mask'] = self.cookie_mask
+        flow_dict['instructions'] = [instruction.as_dict() for
+                                     instruction in self.instructions]
+        return flow_dict
+
+    @classmethod
+    def from_dict(cls, flow_dict, switch):
+        """Create a Flow instance from a dictionary."""
+        flow = super().from_dict(flow_dict, switch)
+        flow.instructions = []
+        if 'actions' in flow_dict:
+            instruction_apply_actions = InstructionApplyAction()
+            for action_dict in flow_dict['actions']:
+                action = cls._action_factory.from_dict(action_dict)
+                if action:
+                    instruction_apply_actions.actions.append(action)
+            flow.instructions.append(instruction_apply_actions)
+        if 'instructions' in flow_dict:
+            for instruction_dict in flow_dict['instructions']:
+                instruction = Instruction.from_dict(instruction_dict)
+                if instruction:
+                    flow.instructions.append(instruction)
+        return flow
 
     @staticmethod
     def _get_of_actions(of_flow_stats):
@@ -220,7 +388,15 @@ class Flow(FlowBase):
         """
         of_flow_mod = super()._as_of_flow_mod(command)
         of_flow_mod.cookie_mask = self.cookie_mask
-        of_actions = [action.as_of_action() for action in self.actions]
-        of_instruction = InstructionApplyAction(actions=of_actions)
-        of_flow_mod.instructions = [of_instruction]
+        of_flow_mod.instructions = [instruction.as_of_instruction() for
+                                    instruction in self.instructions]
         return of_flow_mod
+
+    @classmethod
+    def from_of_flow_stats(cls, of_flow_stats, switch):
+        """Create a flow with latest stats based on pyof FlowStats."""
+        instructions = [Instruction.from_of_instruction(of_instruction)
+                        for of_instruction in of_flow_stats.instructions]
+        flow = super().from_of_flow_stats(of_flow_stats, switch)
+        flow.instructions = instructions
+        return flow

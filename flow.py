@@ -51,8 +51,7 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
     _match_class = None
 
     def __init__(self, switch, table_id=0x0, match=None, priority=0x8000,
-                 idle_timeout=0, hard_timeout=0, cookie=0, actions=None,
-                 stats=None):
+                 idle_timeout=0, hard_timeout=0, cookie=0, stats=None):
         """Assign parameters to attributes.
 
         Args:
@@ -77,7 +76,6 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
         self.idle_timeout = idle_timeout
         self.hard_timeout = hard_timeout
         self.cookie = cookie
-        self.actions = actions or []
         self.stats = stats or FlowStats()  # pylint: disable=E1102
 
     @property
@@ -117,7 +115,7 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
             'idle_timeout': self.idle_timeout,
             'hard_timeout': self.hard_timeout,
             'cookie': self.cookie,
-            'actions': [action.as_dict() for action in self.actions]}
+        }
         if include_id:
             # Avoid infinite recursion
             flow_dict['id'] = self.id
@@ -143,12 +141,6 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
         # Version-specific attributes
         if 'match' in flow_dict:
             flow.match = cls._match_class.from_dict(flow_dict['match'])
-        if 'actions' in flow_dict:
-            flow.actions = []
-            for action_dict in flow_dict['actions']:
-                action = cls._action_factory.from_dict(action_dict)
-                if action:
-                    flow.actions.append(action)
 
         return flow
 
@@ -206,10 +198,6 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
     @classmethod
     def from_of_flow_stats(cls, of_flow_stats, switch):
         """Create a flow with latest stats based on pyof FlowStats."""
-        of_actions = cls._get_of_actions(of_flow_stats)
-        actions = (cls._action_factory.from_of_action(of_action)
-                   for of_action in of_actions)
-        non_none_actions = [action for action in actions if action]
         return cls(switch,
                    table_id=of_flow_stats.table_id.value,
                    match=cls._match_class.from_of_match(of_flow_stats.match),
@@ -217,7 +205,6 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
                    idle_timeout=of_flow_stats.idle_timeout.value,
                    hard_timeout=of_flow_stats.hard_timeout.value,
                    cookie=of_flow_stats.cookie.value,
-                   actions=non_none_actions,
                    stats=FlowStats.from_of_flow_stats(of_flow_stats))
 
     def __eq__(self, other):
@@ -227,6 +214,52 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
                              f'an instance of {self.__class__}')
 
         return self.as_dict(include_id) == other.as_dict(include_id)
+
+
+class InstructionBase(ABC):
+    """Base class for Instructions."""
+
+    _action_factory = None
+
+    def as_dict(self):
+        """Return this instruction as a dict."""
+        return vars(self)
+
+    @classmethod
+    def from_dict(cls, instruction_dict):
+        """Return an action instance from attributes in a dictionary."""
+        instruction = cls(None)
+        for attr_name, value in instruction_dict.items():
+            if hasattr(instruction, attr_name):
+                if attr_name == 'actions':
+                    value = [cls._action_factory.from_dict(action_dict)
+                             for action_dict in value]
+                setattr(instruction, attr_name, value)
+        return instruction
+
+
+class InstructionFactoryBase(ABC):
+    """Deal with different instruction implementations."""
+
+    _instruction_class = {
+        'apply_actions': None
+    }
+
+    @classmethod
+    def from_dict(cls, instruction_dict):
+        """Build the proper instruction from a dictionary."""
+        instruction = instruction_dict.get('instruction_type')
+        instruction_class = cls._instruction_class[instruction]
+        return instruction_class.from_dict(instruction_dict) \
+            if instruction_class else None
+
+    @classmethod
+    def from_of_instruction(cls, of_instruction):
+        """Build the proper instruction from a dictionary."""
+        instruction = type(of_instruction)
+        instruction_class = cls._instruction_class[instruction]
+        return instruction_class.from_of_instruction(of_instruction) \
+            if instruction_class else None
 
 
 class ActionBase(ABC):

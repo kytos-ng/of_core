@@ -47,19 +47,99 @@ class TestFlow(TestCase):
 
     mock_switch = get_switch_mock("00:00:00:00:00:00:00:01")
     mock_switch.id = "00:00:00:00:00:00:00:01"
-    expected = {'switch': mock_switch.id,
-                'table_id': 1,
-                'match': {
-                    'dl_src': '11:22:33:44:55:66'
-                },
-                'priority': 2,
-                'idle_timeout': 3,
-                'hard_timeout': 4,
-                'cookie': 5,
-                'actions': [
-                    {'action_type': 'set_vlan',
-                     'vlan_id': 6}],
-                'stats': {}}
+    requested = {
+        'switch': mock_switch.id,
+        'table_id': 1,
+        'match': {
+            'dl_src': '11:22:33:44:55:66'
+        },
+        'priority': 2,
+        'idle_timeout': 3,
+        'hard_timeout': 4,
+        'cookie': 5,
+        'actions': [{
+            'action_type': 'set_vlan',
+            'vlan_id': 6
+        }]
+    }
+    expected_10 = {
+        'switch': mock_switch.id,
+        'table_id': 1,
+        'match': {
+            'dl_src': '11:22:33:44:55:66'
+        },
+        'priority': 2,
+        'idle_timeout': 3,
+        'hard_timeout': 4,
+        'cookie': 5,
+        'actions': [{
+            'action_type': 'set_vlan',
+            'vlan_id': 6
+        }],
+        'stats': {}
+    }
+    expected_13 = {
+        'switch': mock_switch.id,
+        'table_id': 1,
+        'match': {
+            'dl_src': '11:22:33:44:55:66'
+        },
+        'priority': 2,
+        'idle_timeout': 3,
+        'hard_timeout': 4,
+        'cookie': 5,
+        'cookie_mask': 0,
+        'instructions': [{
+            'instruction_type': 'apply_actions',
+            'actions': [{
+                'action_type': 'set_vlan',
+                'vlan_id': 6
+                }]
+            }],
+        'stats': {}
+    }
+    requested_instructions = {
+        'switch': mock_switch.id,
+        'table_id': 1,
+        'match': {
+            'dl_src': '11:22:33:44:55:66'
+        },
+        'priority': 2,
+        'idle_timeout': 3,
+        'hard_timeout': 4,
+        'cookie': 5,
+        'cookie_mask': 0,
+        'instructions': [
+            {
+                'instruction_type': 'apply_actions',
+                'actions': [{
+                    'action_type': 'set_vlan',
+                    'vlan_id': 2
+                }]
+            },
+            {
+                'instruction_type': 'goto_table',
+                'table_id': 1
+            }
+
+        ]
+    }
+
+    @patch('napps.kytos.of_core.flow.v0x01')
+    @patch('napps.kytos.of_core.flow.v0x04')
+    @patch('napps.kytos.of_core.flow.json.dumps')
+    def test_flow_mod_goto(self, *args):
+        """Convert a dict to flow and vice-versa."""
+        (mock_json, _, _) = args
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_json.return_value = str(self.requested_instructions)
+        mock_switch = get_switch_mock(dpid, 0x04)
+        mock_switch.id = dpid
+        flow = Flow04.from_dict(self.requested_instructions, mock_switch)
+        actual = flow.as_dict()
+        del actual['id']
+        del actual['stats']
+        self.assertDictEqual(self.requested_instructions, actual)
 
     @patch('napps.kytos.of_core.flow.v0x01')
     @patch('napps.kytos.of_core.flow.v0x04')
@@ -68,15 +148,17 @@ class TestFlow(TestCase):
         """Convert a dict to flow and vice-versa."""
         (mock_json, _, _) = args
         dpid = "00:00:00:00:00:00:00:01"
-        mock_json.return_value = str(self.expected)
-        for flow_class, version in [(Flow04, 0x01), (Flow04, 0x04)]:
+        mock_json.return_value = str(self.requested)
+        for flow_class, version, expected in \
+            [(Flow01, 0x01, self.expected_10),
+             (Flow04, 0x04, self.expected_13)]:
             with self.subTest(flow_class=flow_class):
                 mock_switch = get_switch_mock(dpid, version)
                 mock_switch.id = dpid
-                flow = flow_class.from_dict(self.expected, mock_switch)
+                flow = flow_class.from_dict(self.requested, mock_switch)
                 actual = flow.as_dict()
                 del actual['id']
-                self.assertDictEqual(self.expected, actual)
+                self.assertDictEqual(expected, actual)
 
     @patch('napps.kytos.of_core.flow.FlowBase._as_of_flow_mod')
     def test_of_flow_mod(self, mock_flow_mod):
@@ -84,7 +166,7 @@ class TestFlow(TestCase):
 
         for flow_class in Flow01, Flow04:
             with self.subTest(flow_class=flow_class):
-                flow = flow_class.from_dict(self.expected, self.mock_switch)
+                flow = flow_class.from_dict(self.requested, self.mock_switch)
                 flow.as_of_add_flow_mod()
                 mock_flow_mod.assert_called()
 
@@ -97,14 +179,14 @@ class TestFlow(TestCase):
         mock_command = MagicMock()
         for flow_class in Flow01, Flow04:
             with self.subTest(flow_class=flow_class):
-                flow_mod = flow_class.from_dict(self.expected,
+                flow_mod = flow_class.from_dict(self.requested,
                                                 self.mock_switch)
                 response = flow_mod._as_of_flow_mod(mock_command)
-                self.assertEqual(response.cookie, self.expected['cookie'])
+                self.assertEqual(response.cookie, self.requested['cookie'])
                 self.assertEqual(response.idle_timeout,
-                                 self.expected['idle_timeout'])
+                                 self.requested['idle_timeout'])
                 self.assertEqual(response.hard_timeout,
-                                 self.expected['hard_timeout'])
+                                 self.requested['hard_timeout'])
 
 
 class TestFlowBase(TestCase):
