@@ -48,14 +48,16 @@ class TestUtils(TestCase):
         self.mock_switch.get_interface_by_port_no.side_effect = [MagicMock(),
                                                                  False]
         handle_port_desc(self.mock_controller, self.mock_switch, [mock_port])
-        self.assertEqual(self.mock_switch.update_interface.call_count, 1)
+        call_count = self.mock_switch.update_or_create_interface.call_count
+        self.assertEqual(call_count, 1)
         mock_event_buffer.assert_called()
         self.assertEqual(self.mock_controller.buffers.app.put.call_count, 2)
 
-        self.mock_switch.update_interface.call_count = 0
+        self.mock_switch.update_or_create_interface.call_count = 0
         self.mock_controller.buffers.app.put.call_count = 0
         handle_port_desc(self.mock_controller, self.mock_switch, [mock_port])
-        self.assertEqual(self.mock_switch.update_interface.call_count, 1)
+        call_count = self.mock_switch.update_or_create_interface.call_count
+        self.assertEqual(call_count, 1)
         mock_event_buffer.assert_called()
         self.assertEqual(self.mock_controller.buffers.app.put.call_count, 2)
 
