@@ -10,7 +10,6 @@ from pyof.v0x01.symmetric.echo_request import EchoRequest
 from pyof.v0x01.symmetric.hello import Hello
 
 from kytos.core import KytosEvent
-from kytos.core.interface import Interface
 from napps.kytos.of_core.utils import emit_message_out
 
 
@@ -91,20 +90,12 @@ def handle_features_reply(controller, event):
                                              connection=connection)
 
     for port in features_reply.ports:
-        interface = switch.get_interface_by_port_no(port.port_no.value)
-        if interface:
-            interface.name = port.name.value
-            interface.address = port.hw_addr.value
-            interface.state = port.state.value
-            interface.features = port.curr
-        else:
-            interface = Interface(name=port.name.value,
-                                  address=port.hw_addr.value,
-                                  port_number=port.port_no.value,
-                                  switch=switch,
-                                  state=port.state.value,
-                                  features=port.curr)
-        switch.update_interface(interface)
+        switch.update_or_create_interface(
+                port.port_no.value,
+                name=port.name.value,
+                address=port.hw_addr.value,
+                state=port.state.value,
+                features=port.curr)
         port_event = KytosEvent(name='kytos/of_core.switch.port.created',
                                 content={
                                     'switch': switch.id,
