@@ -10,7 +10,6 @@ from pyof.v0x04.symmetric.echo_request import EchoRequest
 from pyof.v0x04.symmetric.hello import Hello
 
 from kytos.core.events import KytosEvent
-from kytos.core.interface import Interface
 from napps.kytos.of_core.utils import emit_message_out
 
 
@@ -101,30 +100,21 @@ def handle_features_reply(controller, event):
 def handle_port_desc(controller, switch, port_list):
     """Update interfaces on switch based on port_list information."""
     for port in port_list:
-        interface = switch.get_interface_by_port_no(port.port_no.value)
         config = port.config
         if (port.supported == 0 and
                 port.curr_speed.value == 0 and
                 port.max_speed.value == 0):
             config = PortConfig.OFPPC_NO_FWD
 
-        if interface:
-            interface.name = port.name.value
-            interface.address = port.hw_addr.value
-            interface.state = port.state.value
-            interface.features = port.curr
-            interface.config = config
-            interface.set_custom_speed(port.curr_speed.value)
-        else:
-            interface = Interface(name=port.name.value,
-                                  address=port.hw_addr.value,
-                                  port_number=port.port_no.value,
-                                  switch=switch,
-                                  state=port.state.value,
-                                  features=port.curr,
-                                  speed=port.curr_speed.value,
-                                  config=config)
-        switch.update_interface(interface)
+        interface = switch.update_or_create_interface(
+                        port.port_no.value,
+                        name=port.name.value,
+                        address=port.hw_addr.value,
+                        state=port.state.value,
+                        features=port.curr,
+                        config=config,
+                        speed=port.curr_speed.value)
+
         event_name = 'kytos/of_core.switch.interface.created'
         interface_event = KytosEvent(name=event_name,
                                      content={'interface': interface})
