@@ -26,6 +26,35 @@ class TestUtils(TestCase):
         self.assertEqual(data, response[0][0])
         self.assertCountEqual(response[1], [])
 
+    def test_of_slicer2(self):
+        """Test of_slicer with insufficient bytes."""
+        data = b'\x04\x00\x00'
+        response = of_slicer(data)
+        self.assertCountEqual(response[0], [])
+        self.assertEqual(response[1], data)
+
+    def test_of_slicer_invalid_data1(self):
+        """Test of_slicer with invalid data: oflen is zero"""
+        data = b'\x04\x00\x00\x00'
+        response = of_slicer(data)
+        self.assertCountEqual(response[0], [])
+        self.assertCountEqual(response[1], [])
+        data = b'\x04\x00\x00\x05\x99\x04\x00\x00\x00'
+        response = of_slicer(data)
+        self.assertEqual(response[0][0], data[:5])
+        self.assertCountEqual(response[1], [])
+
+    def test_of_slicer_invalid_data2(self):
+        """Test of_slicer with invalid data: non openflow"""
+        data = b'\x00\x00\x00\x00'
+        response = of_slicer(data)
+        self.assertCountEqual(response[0], [])
+        self.assertCountEqual(response[1], [])
+        data = b'\x04\x00\x00\x00\x00\x00\x00\x00'
+        response = of_slicer(data)
+        self.assertCountEqual(response[0], [])
+        self.assertCountEqual(response[1], [])
+
     def test_unpack_int(self):
         """Test test_unpack_int."""
         mock_packet = MagicMock()

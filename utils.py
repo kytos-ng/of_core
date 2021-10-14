@@ -7,6 +7,7 @@ from pyof.foundation.exceptions import PackException, UnpackException
 from pyof.v0x01.common.header import Type as OFPTYPE
 
 from kytos.core import KytosEvent
+from napps.kytos.of_core import settings
 
 
 def of_slicer(remaining_data):
@@ -15,6 +16,12 @@ def of_slicer(remaining_data):
     pkts = []
     while data_len > 3:
         length_field = struct.unpack('!H', remaining_data[2:4])[0]
+        ofver = remaining_data[0]
+        # sanity checks: badly formatted packet
+        if ofver not in settings.OPENFLOW_VERSIONS or length_field == 0:
+            remaining_data = remaining_data[4:]
+            data_len = len(remaining_data)
+            continue
         if data_len >= length_field:
             pkts.append(remaining_data[:length_field])
             remaining_data = remaining_data[length_field:]
