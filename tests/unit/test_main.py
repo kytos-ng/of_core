@@ -56,7 +56,7 @@ class TestMain(TestCase):
     def test_request_flow_list(self, *args):
         """Test request flow list."""
         (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04) = args
-        mock_update_flow_list_v0x04.return_value = "ABC"
+        mock_update_flow_list_v0x04.return_value = 0xABC
         self.napp._request_flow_list(self.switch_v0x01)
         mock_update_flow_list_v0x01.assert_called_with(self.napp.controller,
                                                        self.switch_v0x01)
@@ -69,7 +69,7 @@ class TestMain(TestCase):
     def test_on_handshake_completed_request_flow_list(self, *args):
         """Test request flow list."""
         (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04) = args
-        mock_update_flow_list_v0x04.return_value = "ABC"
+        mock_update_flow_list_v0x04.return_value = 0xABC
         name = 'kytos/of_core.handshake.completed'
         content = {"switch": self.switch_v0x01}
         event = get_kytos_event_mock(name=name, content=content)
@@ -217,7 +217,7 @@ class TestMain(TestCase):
         mock_switch = get_switch_mock(dpid)
         mock_switch.id = dpid
         self.napp._multipart_replies_flows = {dpid: mock_switch}
-        self.napp._multipart_replies_xids = {dpid: {'flows': mock_switch}}
+        self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC}}
         self.napp._update_switch_flows(mock_switch)
         self.assertEqual(self.napp._multipart_replies_xids, {dpid: {}})
         self.assertEqual(self.napp._multipart_replies_flows, {})
