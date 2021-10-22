@@ -1,5 +1,8 @@
 """NApp responsible for the main OpenFlow basic operations."""
 
+import time
+from threading import Lock
+
 from pyof.foundation.exceptions import UnpackException
 from pyof.foundation.network_types import Ethernet, EtherType
 from pyof.utils import PYOF_VERSION_LIBS, unpack
@@ -38,6 +41,8 @@ class Main(KytosNApp):
         """
         self.of_core_version_utils = {0x01: of_core_v0x01_utils,
                                       0x04: of_core_v0x04_utils}
+        self._multipart_replies_xids_lock = {}
+        self._connection_lock = {}
         self.execute_as_loop(settings.STATS_INTERVAL)
 
     def execute(self):
@@ -67,7 +72,10 @@ class Main(KytosNApp):
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
                                                                switch)
             self._multipart_replies_xids[switch.id] = {'flows': xid_flows,
+                                                       int(xid_flows): 0,
                                                        'ports': xid_ports}
+            if switch.id not in self._multipart_replies_xids_lock:
+                self._multipart_replies_xids_lock[switch.id] = Lock()
 
     @listen_to('kytos/of_core.v0x01.messages.in.ofpt_stats_reply')
     def handle_stats_reply(self, event):
@@ -166,7 +174,24 @@ class Main(KytosNApp):
             # Get existent flows from the same xid (or create an empty list)
             all_flows = self._multipart_replies_flows.setdefault(switch.id, [])
             all_flows.extend(flows)
+
+            xid = int(reply.header.xid)
+            if xid in self._multipart_replies_xids.get(switch.id, {}):
+                with self._multipart_replies_xids_lock[switch.id]:
+                    self._multipart_replies_xids[switch.id][xid] -= 1
+
             if reply.flags.value % 2 == 0:  # Last bit means more replies
+                # make sure no more parts are missing, wait at most half of
+                # STATS_INTERVAL
+                _wait_sleep = 0.05
+                _wait_count = 0
+                while _wait_count < settings.STATS_INTERVAL/2:
+                    if self._multipart_replies_xids.get(switch.id,
+                                                        {}).get(xid, 0) > 0:
+                        time.sleep(_wait_sleep)
+                    else:
+                        break
+                    _wait_count += _wait_sleep
                 self._update_switch_flows(switch)
                 event_raw = KytosEvent(
                     name='kytos/of_core.flow_stats.received',
@@ -187,8 +212,11 @@ class Main(KytosNApp):
     def _update_switch_flows(self, switch):
         """Update controllers' switch flow list and clean resources."""
         switch.flows = self._multipart_replies_flows[switch.id]
+        xid_flows = int(self._multipart_replies_xids[switch.id]['flows'])
         del self._multipart_replies_flows[switch.id]
         del self._multipart_replies_xids[switch.id]['flows']
+        if xid_flows in self._multipart_replies_xids[switch.id]:
+            del self._multipart_replies_xids[switch.id][xid_flows]
 
     def _new_port_stats(self, switch):
         """Send an event with the new port stats and clean resources."""
@@ -225,68 +253,95 @@ class Main(KytosNApp):
             switch.update_lastseen()
 
         connection = event.source
+        if connection.id not in self._connection_lock:
+            self._connection_lock[connection.id] = Lock()
 
-        data = connection.remaining_data + event.content['new_data']
-        packets, connection.remaining_data = of_slicer(data)
-        if not packets:
-            return
-
-        unprocessed_packets = []
-
-        for packet in packets:
-            if not connection.is_alive():
+        with self._connection_lock[connection.id]:
+            data = connection.remaining_data + event.content['new_data']
+            packets, connection.remaining_data = of_slicer(data)
+            if not packets:
                 return
 
-            if connection.is_new():
-                try:
-                    message = GenericHello(packet=packet)
-                    self._negotiate(connection, message)
-                except (UnpackException, NegotiationException) as err:
-                    if isinstance(err, UnpackException):
-                        log.error('Connection %s: Invalid hello message',
-                                  connection.id)
-                    else:
-                        log.error('Connection %s: Negotiation Failed',
-                                  connection.id)
-                    connection.protocol.state = 'hello_failed'
-                    connection.close()
-                    connection.state = ConnectionState.FAILED
+            unprocessed_packets = []
+            multipart_messages = {}
+
+            for packet in packets:
+                if not connection.is_alive():
                     return
-                connection.set_setup_state()
-                continue
 
-            try:
-                message = connection.protocol.unpack(packet)
-                if message.header.message_type == Type.OFPT_ERROR:
-                    log.error(f"OFPT_ERROR: {message.code} error code received"
-                              f" from switch {message.dpid} with xid "
-                              f"{message.header.xid}/{message.header.xid:x}")
-            except (UnpackException, AttributeError) as err:
-                log.error(err)
-                if isinstance(err, AttributeError):
-                    error_msg = 'connection closed before version negotiation'
-                    log.error('Connection %s: %s', connection.id, error_msg)
-                connection.close()
-                return
+                if connection.is_new():
+                    if not self.process_new_connection(connection, packet):
+                        return
+                    continue
 
-            log.debug('Connection %s: IN OFP, version: %s, type: %s, xid: %s',
-                      connection.id,
-                      message.header.version,
-                      message.header.message_type,
-                      message.header.xid)
+                try:
+                    message = connection.protocol.unpack(packet)
+                    if message.header.message_type == Type.OFPT_ERROR:
+                        log.error(f"OFPT_ERROR: {message.code} error code"
+                                  f"received from switch {message.dpid} with"
+                                  f"xid {message.header.xid}/"
+                                  f"{message.header.xid:x}")
+                except (UnpackException, AttributeError) as err:
+                    log.error(err)
+                    if isinstance(err, AttributeError):
+                        log.error(f'Connection {connection.id}: connection'
+                                  f'closed before version negotiation')
+                    connection.close()
+                    return
 
-            waiting_features_reply = (
-                str(message.header.message_type) == 'Type.OFPT_FEATURES_REPLY'
-                and connection.protocol.state == 'waiting_features_reply')
+                log.debug('Connection %s: IN OFP, ver: %s, type: %s, xid: %s',
+                          connection.id,
+                          message.header.version,
+                          message.header.message_type,
+                          message.header.xid)
 
-            if connection.is_during_setup() and not waiting_features_reply:
-                unprocessed_packets.append(packet)
-                continue
+                ofp_msg_type_str = str(message.header.message_type)
+                waiting_features_reply = (
+                    ofp_msg_type_str == 'Type.OFPT_FEATURES_REPLY'
+                    and connection.protocol.state == 'waiting_features_reply')
 
-            self.emit_message_in(connection, message)
+                if connection.is_during_setup() and not waiting_features_reply:
+                    unprocessed_packets.append(packet)
+                    continue
 
-        connection.remaining_data = b''.join(unprocessed_packets) + \
-                                    connection.remaining_data
+                if ofp_msg_type_str == 'Type.OFPT_MULTIPART_REPLY':
+                    multipart_messages.setdefault(int(message.header.xid), [])
+                    multipart_messages[int(message.header.xid)].append(message)
+
+                self.emit_message_in(connection, message)
+
+            connection.remaining_data = b''.join(unprocessed_packets) + \
+                                        connection.remaining_data
+
+        self.process_multipart_messages(switch, connection, multipart_messages)
+
+    def process_new_connection(self, connection, packet):
+        """Process a packet from a new connection."""
+        try:
+            message = GenericHello(packet=packet)
+            self._negotiate(connection, message)
+        except (UnpackException, NegotiationException) as err:
+            if isinstance(err, UnpackException):
+                log.error('Connection %s: Invalid hello message',
+                          connection.id)
+            else:
+                log.error('Connection %s: Negotiation Failed',
+                          connection.id)
+            connection.protocol.state = 'hello_failed'
+            connection.close()
+            connection.state = ConnectionState.FAILED
+            return False
+        connection.set_setup_state()
+        return True
+
+    def process_multipart_messages(self, switch, connection, messages):
+        """Updates the multipart reply counter and emit KytosEvent."""
+        for xid, msgs in messages.items():
+            if xid in self._multipart_replies_xids.get(switch.id, {}):
+                with self._multipart_replies_xids_lock[switch.id]:
+                    self._multipart_replies_xids[switch.id][xid] += len(msgs)
+            for message in msgs:
+                self.emit_message_in(connection, message)
 
     def emit_message_in(self, connection, message):
         """Emit a KytosEvent for each incoming message.
