@@ -12,7 +12,7 @@ from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core import KytosEvent, KytosNApp, log
 from kytos.core.connection import ConnectionState
-from kytos.core.helpers import listen_to
+from kytos.core.helpers import listen_to, run_on_thread
 from kytos.core.interface import Interface
 from napps.kytos.of_core import settings
 from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
@@ -28,7 +28,9 @@ class Main(KytosNApp):
     """Main class of the NApp responsible for OpenFlow basic operations."""
 
     # Keep track of multiple multipart replies from our own request only.
-    # Assume that all replies are received before setting a new xid.
+    # Assume that all replies are received before setting a new xid. If
+    # that is not the case (i.e., overlapping replies), we skip up to X
+    # cycles before cleaning up pending requests and getting a fresh start
     _multipart_replies_xids = {}
     _multipart_replies_flows = {}
     _multipart_replies_ports = {}
@@ -45,6 +47,10 @@ class Main(KytosNApp):
         self._connection_lock = {}
         self.execute_as_loop(settings.STATS_INTERVAL)
 
+        # Per switch delay to request flow/port stats, to avoid all request
+        # being sent together and increase the overhead on the controller
+        self.switch_req_stats_delay = {}
+
     def execute(self):
         """Run once on app 'start' or in a loop.
 
@@ -60,13 +66,45 @@ class Main(KytosNApp):
                                                    connection.protocol.version]
                     version_utils.send_echo(self.controller, switch)
 
+    def _check_overlapping_multipart_request(self, switch):
+        """Check overlapping multipart stats request (OF 1.3 only)."""
+        current_req = self._multipart_replies_xids.get(switch.id, {})
+        if ('flows' in current_req or 'ports' in current_req) and \
+           current_req.get('skipped', 0) <= settings.STATS_REQ_SKIP:
+            log.info("Overlapping stats request: switch %s flows_xid %s"
+                     " ports_xid %s", switch.id, current_req.get('flows'),
+                     current_req.get('ports'))
+            current_req['skipped'] = current_req.get('skipped', 0) + 1
+            return True
+
+        if switch.id in self._multipart_replies_flows:
+            del self._multipart_replies_flows[switch.id]
+        if switch.id in self._multipart_replies_ports:
+            del self._multipart_replies_ports[switch.id]
+        return False
+
+    def _get_switch_req_stats_delay(self, switch):
+        if switch.id in self.switch_req_stats_delay:
+            return self.switch_req_stats_delay[switch.id]
+        last = self.switch_req_stats_delay.get('last', 0)
+        max_delay = settings.STATS_INTERVAL/2
+        next_delay = (last + max_delay/10) % max_delay
+        self.switch_req_stats_delay[switch.id] = next_delay
+        self.switch_req_stats_delay['last'] = next_delay
+        return next_delay
+
+    @run_on_thread
     def _request_flow_list(self, switch):
         """Send flow stats request to a connected switch."""
+        time.sleep(self._get_switch_req_stats_delay(switch))
         of_version = switch.connection.protocol.version
         if of_version == 0x01:
             of_core_v0x01_utils.update_flow_list(self.controller, switch)
             of_core_v0x01_utils.request_port_stats(self.controller, switch)
         elif of_version == 0x04:
+            if self._check_overlapping_multipart_request(switch):
+                return
+
             xid_flows = of_core_v0x04_utils.update_flow_list(self.controller,
                                                              switch)
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
@@ -192,7 +230,12 @@ class Main(KytosNApp):
                     else:
                         break
                     _wait_count += _wait_sleep
-                self._update_switch_flows(switch)
+                try:
+                    self._update_switch_flows(switch)
+                except KeyError:
+                    log.error("Skipped flow stats reply due to error when"
+                              f"updating switch {switch.id}, xid {xid}")
+                    return
                 event_raw = KytosEvent(
                     name='kytos/of_core.flow_stats.received',
                     content={'switch': switch})
