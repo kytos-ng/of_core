@@ -41,7 +41,7 @@ class Main(KytosNApp):
         self.of_core_version_utils = {0x01: of_core_v0x01_utils,
                                       0x04: of_core_v0x04_utils}
         self.execute_as_loop(settings.STATS_INTERVAL)
-        self._multipart_flows_lock = Lock()
+        self._multipart_flows_lock = {}
 
     def execute(self):
         """Run once on app 'start' or in a loop.
@@ -166,8 +166,9 @@ class Main(KytosNApp):
             # Get all flows from the reply
             flows = [Flow04.from_of_flow_stats(of_flow_stats, switch)
                      for of_flow_stats in reply.body]
+            self._multipart_flows_lock.setdefault(switch.id, Lock())
             # Get existent flows from the same xid (or create an empty list)
-            with self._multipart_flows_lock:
+            with self._multipart_flows_lock[switch.id]:
                 all_flows = self._multipart_replies_flows.setdefault(switch.id,
                                                                      [])
                 all_flows.extend(flows)
