@@ -2,6 +2,9 @@
 #: Pooling frequency
 STATS_INTERVAL = 60
 
+#: All OpenFlow Versions
+ALL_OPENFLOW_VERSIONS = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+
 #: Supported Versions
 OPENFLOW_VERSIONS = [0x01, 0x04]
 

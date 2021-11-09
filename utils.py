@@ -18,7 +18,7 @@ def of_slicer(remaining_data):
         length_field = struct.unpack('!H', remaining_data[2:4])[0]
         ofver = remaining_data[0]
         # sanity checks: badly formatted packet
-        if ofver not in settings.OPENFLOW_VERSIONS or length_field == 0:
+        if ofver not in settings.ALL_OPENFLOW_VERSIONS or length_field == 0:
             remaining_data = remaining_data[4:]
             data_len = len(remaining_data)
             continue
