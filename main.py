@@ -1,5 +1,7 @@
 """NApp responsible for the main OpenFlow basic operations."""
 
+from threading import Lock
+
 from pyof.foundation.exceptions import UnpackException
 from pyof.foundation.network_types import Ethernet, EtherType
 from pyof.utils import PYOF_VERSION_LIBS, unpack
@@ -39,6 +41,7 @@ class Main(KytosNApp):
         self.of_core_version_utils = {0x01: of_core_v0x01_utils,
                                       0x04: of_core_v0x04_utils}
         self.execute_as_loop(settings.STATS_INTERVAL)
+        self._multipart_flows_lock = {}
 
     def execute(self):
         """Run once on app 'start' or in a loop.
@@ -163,9 +166,12 @@ class Main(KytosNApp):
             # Get all flows from the reply
             flows = [Flow04.from_of_flow_stats(of_flow_stats, switch)
                      for of_flow_stats in reply.body]
+            self._multipart_flows_lock.setdefault(switch.id, Lock())
             # Get existent flows from the same xid (or create an empty list)
-            all_flows = self._multipart_replies_flows.setdefault(switch.id, [])
-            all_flows.extend(flows)
+            with self._multipart_flows_lock[switch.id]:
+                all_flows = self._multipart_replies_flows.setdefault(switch.id,
+                                                                     [])
+                all_flows.extend(flows)
             if reply.flags.value % 2 == 0:  # Last bit means more replies
                 self._update_switch_flows(switch)
                 event_raw = KytosEvent(
