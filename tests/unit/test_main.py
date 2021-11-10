@@ -34,11 +34,12 @@ class TestMain(TestCase):
         self.addCleanup(patch.stopall)
         self.napp = Main(get_controller_mock())
 
+    @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.v0x01.utils.send_echo')
     @patch('napps.kytos.of_core.v0x04.utils.send_echo')
     def test_execute(self, *args):
         """Test execute."""
-        (mock_of_core_v0x04_utils, mock_of_core_v0x01_utils) = args
+        (mock_of_core_v0x04_utils, mock_of_core_v0x01_utils, _) = args
         self.switch_v0x01.is_connected.return_value = True
         self.switch_v0x04.is_connected.return_value = True
         self.napp.controller.switches = {"00:00:00:00:00:00:00:01":
@@ -51,12 +52,74 @@ class TestMain(TestCase):
         self.napp.execute()
         mock_of_core_v0x04_utils.assert_called()
 
+    @patch('napps.kytos.of_core.main.settings')
+    def test_check_overlapping_multipart_request(self, mock_settings):
+        """Test check_overlapping_multipart_request."""
+        mock_settings.STATS_REQ_SKIP = 3
+        dpid = '00:00:00:00:00:00:00:01'
+        mock_switch = get_switch_mock(dpid)
+        mock_switch.id = dpid
+
+        # Case 1: skipped due to delayed flow stats
+        self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC}}
+        self.assertTrue(self.napp._check_overlapping_multipart_request(
+                                        mock_switch))
+        self.assertEqual(self.napp._multipart_replies_xids[dpid]['skipped'], 1)
+
+        # Case 2: skipped due to delayed port stats
+        self.napp._multipart_replies_xids = {dpid: {'ports': 0xABC,
+                                                    'skipped': 1}}
+        self.assertTrue(self.napp._check_overlapping_multipart_request(
+                                        mock_switch))
+        self.assertEqual(self.napp._multipart_replies_xids[dpid]['skipped'], 2)
+
+        # Case 3: delayed port or flow stats but already skipped X times
+        self.napp._multipart_replies_flows = {dpid: mock_switch}
+        self.napp._multipart_replies_ports = {dpid: mock_switch}
+        self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC,
+                                                    'ports': 0xABC,
+                                                    'skipped': 3}}
+        self.assertFalse(self.napp._check_overlapping_multipart_request(
+                                        mock_switch))
+        self.assertEqual(self.napp._multipart_replies_flows, {})
+        self.assertEqual(self.napp._multipart_replies_ports, {})
+
+    @patch('napps.kytos.of_core.main.settings')
+    def test_get_switch_req_stats_delay(self, mock_settings):
+        """Test _get_switch_req_stats_delay."""
+        mock_settings.STATS_INTERVAL = 60
+        dpid = '00:00:00:00:00:00:00:01'
+        mock_switch = get_switch_mock(dpid)
+        mock_switch.id = dpid
+
+        # Case 1: switch already known
+        self.napp.switch_req_stats_delay = {dpid: 9}
+        self.assertEqual(self.napp._get_switch_req_stats_delay(mock_switch), 9)
+
+        # Case 2: switch unknown, it should have a new delay based on
+        # STATS_INTERVAL
+        self.napp.switch_req_stats_delay = {}
+        self.assertEqual(self.napp._get_switch_req_stats_delay(mock_switch), 3)
+
+        # Case 3: switch unknown but there are other switches, it should have
+        # a new delay based on STATS_INTERVAL and different from others
+        dpid2 = '00:00:00:00:00:00:00:02'
+        mock_sw2 = get_switch_mock(dpid2)
+        mock_sw2.id = dpid2
+        self.napp.switch_req_stats_delay = {dpid: 3, 'last': 3}
+        self.assertEqual(self.napp._get_switch_req_stats_delay(mock_sw2), 6)
+
+    @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.of_core.main.Main.'
+           '_check_overlapping_multipart_request')
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
     @patch('napps.kytos.of_core.v0x01.utils.update_flow_list')
     def test_request_flow_list(self, *args):
         """Test request flow list."""
-        (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04) = args
-        mock_update_flow_list_v0x04.return_value = "ABC"
+        (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04,
+         mock_check_overlapping_multipart_request, _) = args
+        mock_update_flow_list_v0x04.return_value = 0xABC
+        mock_check_overlapping_multipart_request.return_value = False
         self.napp._request_flow_list(self.switch_v0x01)
         mock_update_flow_list_v0x01.assert_called_with(self.napp.controller,
                                                        self.switch_v0x01)
@@ -64,12 +127,18 @@ class TestMain(TestCase):
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
 
+        mock_update_flow_list_v0x04.call_count = 0
+        mock_check_overlapping_multipart_request.return_value = True
+        self.napp._request_flow_list(self.switch_v0x04)
+        mock_update_flow_list_v0x04.assert_not_called()
+
+    @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
     @patch('napps.kytos.of_core.v0x01.utils.update_flow_list')
     def test_on_handshake_completed_request_flow_list(self, *args):
         """Test request flow list."""
-        (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04) = args
-        mock_update_flow_list_v0x04.return_value = "ABC"
+        (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04, _) = args
+        mock_update_flow_list_v0x04.return_value = 0xABC
         name = 'kytos/of_core.handshake.completed'
         content = {"switch": self.switch_v0x01}
         event = get_kytos_event_mock(name=name, content=content)
@@ -187,29 +256,53 @@ class TestMain(TestCase):
 
         mock_buffers_put.assert_called()
 
+    @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.of_core.main.log')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
     @patch('napps.kytos.of_core.main.Main._update_switch_flows')
     @patch('napps.kytos.of_core.v0x04.flow.Flow.from_of_flow_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
     def test_handle_multipart_flow_stats(self, *args):
         """Test handle multipart flow stats."""
-        (mock_is_multipart_reply_ours, mock_from_of_flow_stats_v0x01,
-         mock_update_switch_flows) = args
+        (mock_is_multipart_reply_ours, mock_from_of_flow_stats_v0x04,
+         mock_update_switch_flows, mock_buffer_put, mock_log,
+         mock_time_sleep) = args
         mock_is_multipart_reply_ours.return_value = True
-        mock_from_of_flow_stats_v0x01.return_value = "ABC"
+        mock_from_of_flow_stats_v0x04.return_value = "ABC"
 
         flow_msg = MagicMock()
         flow_msg.body = "A"
         flow_msg.flags.value = 2
         flow_msg.body_type = StatsType.OFPST_FLOW
+        flow_msg.header.xid = 0xABC
+
+        dpid = self.switch_v0x04.id
+        self.napp._multipart_replies_xids_lock = {dpid: MagicMock()}
+        self.napp._multipart_replies_xids = {dpid: {0xABC: 1}}
 
         self.napp._handle_multipart_flow_stats(flow_msg, self.switch_v0x04)
 
         mock_is_multipart_reply_ours.assert_called_with(flow_msg,
                                                         self.switch_v0x04,
                                                         'flows')
-        mock_from_of_flow_stats_v0x01.assert_called_with(flow_msg.body,
+        mock_from_of_flow_stats_v0x04.assert_called_with(flow_msg.body,
                                                          self.switch_v0x04)
         mock_update_switch_flows.assert_called_with(self.switch_v0x04)
+        self.assertEqual(self.napp._multipart_replies_xids[dpid][0xABC], 0)
+
+        # Test when some parts of the multipart reply are missing
+        self.napp._multipart_replies_xids = {dpid: {0xABC: 2}}
+        self.napp._handle_multipart_flow_stats(flow_msg, self.switch_v0x04)
+        mock_time_sleep.assert_called()
+
+        # Test when update_switch_flows fails
+        self.napp._multipart_replies_xids = {dpid: {0xABC: 1}}
+        mock_update_switch_flows.side_effect = KeyError()
+        mock_buffer_put.call_count = 0
+        mock_log.error.call_count = 0
+        self.napp._handle_multipart_flow_stats(flow_msg, self.switch_v0x04)
+        self.assertEqual(mock_log.error.call_count, 1)
+        mock_buffer_put.assert_not_called()
 
     def test_update_switch_flows(self):
         """Test update_switch_flows."""
@@ -217,7 +310,7 @@ class TestMain(TestCase):
         mock_switch = get_switch_mock(dpid)
         mock_switch.id = dpid
         self.napp._multipart_replies_flows = {dpid: mock_switch}
-        self.napp._multipart_replies_xids = {dpid: {'flows': mock_switch}}
+        self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC, 0xABC: 0}}
         self.napp._update_switch_flows(mock_switch)
         self.assertEqual(self.napp._multipart_replies_xids, {dpid: {}})
         self.assertEqual(self.napp._multipart_replies_flows, {})
@@ -240,12 +333,14 @@ class TestMain(TestCase):
             mock_reply, mock_switch, 'flows')
         self.assertEqual(response, False)
 
+    @patch('napps.kytos.of_core.main.Main.process_multipart_messages')
     @patch('napps.kytos.of_core.main.of_slicer')
     @patch('napps.kytos.of_core.main.Main._negotiate')
     @patch('napps.kytos.of_core.main.Main.emit_message_in')
     def test_handle_raw_in(self, *args):
         """Test handle_raw_in."""
-        (mock_emit_message_in, mock_negotiate, mock_of_slicer) = args
+        (mock_emit_message_in, mock_negotiate, mock_of_slicer,
+         mock_process_multipart_messages) = args
 
         mock_packets = MagicMock()
         mock_data = MagicMock()
@@ -270,6 +365,33 @@ class TestMain(TestCase):
         mock_connection.protocol.unpack.side_effect = AttributeError()
         self.napp.handle_raw_in(mock_event)
         self.assertEqual(mock_connection.close.call_count, 1)
+
+        # test message type OFPT_MULTIPART_REPLY
+        mock_message = MagicMock()
+        mock_message.header.xid = 0xABC
+        mock_message.header.message_type.name = 'ofpt_multipart_reply'
+        mock_connection.protocol.unpack.side_effect = [mock_message]*2
+        mock_connection.is_new.side_effect = [False, False]
+        mock_process_multipart_messages.call_count = 0
+        messages = {0xABC: [mock_message]*2}
+        self.napp.handle_raw_in(mock_event)
+        mock_process_multipart_messages.assert_called_with(mock_connection,
+                                                           messages)
+
+    @patch('napps.kytos.of_core.main.Main.emit_message_in')
+    def test_process_multipart_messages(self, mock_emit_message_in):
+        """Test process_multipart_messages."""
+        dpid = self.switch_v0x04.id
+        mock_connection = MagicMock()
+        mock_connection.switch = self.switch_v0x04
+        self.napp._multipart_replies_xids_lock = {dpid: MagicMock()}
+        self.napp._multipart_replies_xids = {dpid: {0xABC: 0}}
+        mock_message = MagicMock()
+        messages = {0xABC: [mock_message]*2}
+        mock_emit_message_in.call_count = 0
+        self.napp.process_multipart_messages(mock_connection, messages)
+        self.assertEqual(mock_emit_message_in.call_count, 2)
+        self.assertEqual(self.napp._multipart_replies_xids[dpid][0xABC], 2)
 
     @patch('napps.kytos.of_core.main.Main._new_port_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
