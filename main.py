@@ -264,9 +264,11 @@ class Main(KytosNApp):
             try:
                 message = connection.protocol.unpack(packet)
                 if message.header.message_type == Type.OFPT_ERROR:
-                    log.error(f"OFPT_ERROR: {message.code} error code received"
-                              f" from switch {message.dpid} with xid "
-                              f"{message.header.xid}/{message.header.xid:x}")
+                    code = message.code
+                    header_xid = message.header.xid
+                    log.error(f"OFPT_ERROR: type {message.error_type}, error"
+                              f" code {code}, from switch {switch.id}, xid "
+                              f"{header_xid}/{header_xid.value:x}")
             except (UnpackException, AttributeError) as err:
                 log.error(err)
                 if isinstance(err, AttributeError):
