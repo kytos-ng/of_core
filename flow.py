@@ -272,10 +272,9 @@ class ActionBase(ABC):
     @classmethod
     def from_dict(cls, action_dict):
         """Return an action instance from attributes in a dictionary."""
-        action = cls(None)
-        for attr_name, value in action_dict.items():
-            if hasattr(action, attr_name):
-                setattr(action, attr_name, value)
+        action_dict = dict(action_dict)
+        action_dict.pop("action_type", None)
+        action = cls(**action_dict)
         return action
 
     @abstractmethod
