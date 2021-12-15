@@ -80,7 +80,7 @@ class Main(KytosNApp):
             event (:class:`~kytos.core.events.KytosEvent):
                 Event with ofpt_stats_reply in message.
         """
-        self.on_stats_reply(event)
+        self.handle_stats_reply(event)
 
     def handle_stats_reply(self, event):
         """Handle stats replies for v0x01 switches."""
