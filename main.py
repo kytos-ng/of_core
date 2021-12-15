@@ -73,13 +73,18 @@ class Main(KytosNApp):
                                                        'ports': xid_ports}
 
     @listen_to('kytos/of_core.v0x01.messages.in.ofpt_stats_reply')
-    def handle_stats_reply(self, event):
+    def on_stats_reply(self, event):
         """Handle stats replies for v0x01 switches.
 
         Args:
             event (:class:`~kytos.core.events.KytosEvent):
                 Event with ofpt_stats_reply in message.
         """
+        self.on_stats_reply(event)
+
+    def handle_stats_reply(self, event):
+        """Handle stats replies for v0x01 switches."""
+
         switch = event.source.switch
         msg = event.content['message']
         if msg.body_type == StatsType.OFPST_FLOW:
@@ -92,7 +97,7 @@ class Main(KytosNApp):
         elif msg.body_type == StatsType.OFPST_PORT:
             port_stats = [of_port_stats for of_port_stats in msg.body]
             port_stats_event = KytosEvent(
-                name=f"kytos/of_core.port_stats",
+                name="kytos/of_core.port_stats",
                 content={
                     'switch': switch,
                     'port_stats': port_stats
@@ -102,7 +107,7 @@ class Main(KytosNApp):
             switch.update_description(msg.body)
 
     @listen_to('kytos/of_core.v0x0[14].messages.in.ofpt_features_reply')
-    def handle_features_reply(self, event):
+    def on_features_reply(self, event):
         """Handle kytos/of_core.messages.in.ofpt_features_reply event.
 
         This is the end of the Handshake workflow of the OpenFlow Protocol.
@@ -110,6 +115,10 @@ class Main(KytosNApp):
         Args:
             event (KytosEvent): Event with features reply message.
         """
+        self.handle_features_reply(event)
+
+    def handle_features_reply(self, event):
+        """Handle kytos/of_core.messages.in.ofpt_features_reply event."""
         connection = event.source
         version_utils = self.of_core_version_utils[connection.protocol.version]
         switch = version_utils.handle_features_reply(self.controller, event)
@@ -140,13 +149,18 @@ class Main(KytosNApp):
             self._request_flow_list(switch)
 
     @listen_to('kytos/of_core.v0x04.messages.in.ofpt_multipart_reply')
-    def handle_multipart_reply(self, event):
+    def on_multipart_reply(self, event):
         """Handle multipart replies for v0x04 switches.
 
         Args:
             event (:class:`~kytos.core.events.KytosEvent):
                 Event with ofpt_multipart_reply in message.
         """
+        self.handle_multipart_reply(event)
+
+    def handle_multipart_reply(self, event):
+        """Handle multipart replies for v0x04 switches."""
+
         reply = event.content['message']
         switch = event.source.switch
 
@@ -218,12 +232,16 @@ class Main(KytosNApp):
         return False
 
     @listen_to('kytos/core.openflow.raw.in')
-    def handle_raw_in(self, event):
+    def on_raw_in(self, event):
         """Handle a RawEvent and generate a kytos/core.messages.in.* event.
 
         Args:
             event (KytosEvent): RawEvent with openflow message to be unpacked
         """
+        self.handle_raw_in(event)
+
+    def handle_raw_in(self, event):
+        """Handle a RawEvent and generate a kytos/core.messages.in.* event."""
         # If the switch is already known to the controller, update the
         # 'lastseen' attribute
         switch = event.source.switch
@@ -316,7 +334,7 @@ class Main(KytosNApp):
             emit_message_out(self.controller, connection, message)
 
     @listen_to('kytos/of_core.v0x0[14].messages.in.ofpt_echo_request')
-    def handle_echo_request(self, event):
+    def on_echo_request(self, event):
         """Handle Echo Request Messages.
 
         This method will get a echo request sent by client and generate a
@@ -327,6 +345,10 @@ class Main(KytosNApp):
                 Event with echo request in message.
 
         """
+        self.handle_echo_request(event)
+
+    def handle_echo_request(self, event):
+        """Handle Echo Request Messages."""
         pyof_lib = PYOF_VERSION_LIBS[event.source.protocol.version]
         echo_request = event.message
         echo_reply = pyof_lib.symmetric.echo_reply.EchoReply(
@@ -389,6 +411,10 @@ class Main(KytosNApp):
 
     # May be removed
     @listen_to('kytos/of_core.v0x0[14].messages.out.ofpt_echo_reply')
+    def on_queued_openflow_echo_reply(self, event):
+        """Handle queued OpenFlow echo reply messages."""
+        self.handle_queued_openflow_echo_reply(event)
+
     def handle_queued_openflow_echo_reply(self, event):
         """Handle queued OpenFlow echo reply messages.
 
@@ -406,18 +432,23 @@ class Main(KytosNApp):
             features_request.FeaturesRequest()
         self.emit_message_out(destination, features_request)
 
-    # pylint: disable=no-self-use
     @listen_to('kytos/of_core.v0x0[14].messages.out.ofpt_features_request')
+    def on_features_request_sent(self, event):
+        """Ensure request has actually been sent before changing state."""
+        self.handle_features_request_sent
+
     def handle_features_request_sent(self, event):
         """Ensure request has actually been sent before changing state."""
         if event.destination.protocol.state == 'sending_features':
             event.destination.protocol.state = 'waiting_features_reply'
-    # pylint: enable=no-self-use
 
-    @staticmethod
     @listen_to('kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed',
                'kytos/of_core.v0x0[14].messages.out.hello_failed')
-    def handle_openflow_in_hello_failed(event):
+    def on_openflow_in_hello_failed(self, event):
+        """Close the connection upon hello failure."""
+        self.handle_openflow_in_hello_failed(event)
+
+    def handle_openflow_in_hello_failed(self, event):
         """Close the connection upon hello failure."""
         event.destination.close()
         log.debug("Connection %s: Connection closed.", event.destination.id)
