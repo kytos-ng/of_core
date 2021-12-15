@@ -435,9 +435,10 @@ class Main(KytosNApp):
     @listen_to('kytos/of_core.v0x0[14].messages.out.ofpt_features_request')
     def on_features_request_sent(self, event):
         """Ensure request has actually been sent before changing state."""
-        self.handle_features_request_sent
+        self.handle_features_request_sent(event)
 
-    def handle_features_request_sent(self, event):
+    @classmethod
+    def handle_features_request_sent(cls, event):
         """Ensure request has actually been sent before changing state."""
         if event.destination.protocol.state == 'sending_features':
             event.destination.protocol.state = 'waiting_features_reply'
@@ -448,7 +449,8 @@ class Main(KytosNApp):
         """Close the connection upon hello failure."""
         self.handle_openflow_in_hello_failed(event)
 
-    def handle_openflow_in_hello_failed(self, event):
+    @classmethod
+    def handle_openflow_in_hello_failed(cls, event):
         """Close the connection upon hello failure."""
         event.destination.close()
         log.debug("Connection %s: Connection closed.", event.destination.id)
