@@ -84,7 +84,6 @@ class Main(KytosNApp):
 
     def handle_stats_reply(self, event):
         """Handle stats replies for v0x01 switches."""
-
         switch = event.source.switch
         msg = event.content['message']
         if msg.body_type == StatsType.OFPST_FLOW:
@@ -160,7 +159,6 @@ class Main(KytosNApp):
 
     def handle_multipart_reply(self, event):
         """Handle multipart replies for v0x04 switches."""
-
         reply = event.content['message']
         switch = event.source.switch
 
