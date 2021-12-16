@@ -236,7 +236,11 @@ class TestMain(TestCase):
         name = 'kytos/of_core.v0x0[14].messages.in.ofpt_features_reply'
         content = {"source": self.switch_v0x01.connection}
         event = get_kytos_event_mock(name=name, content=content)
+        count = self.switch_v0x01.connection.switch.update_lastseen.call_count
+        self.assertEqual(count, 0)
         self.napp.handle_features_reply(event)
+        count = self.switch_v0x01.connection.switch.update_lastseen.call_count
+        self.assertEqual(count, 1)
         mock_freply_v0x01.assert_called_with(self.napp.controller, event)
         mock_send_desc_request_v0x01.assert_called_with(
             self.napp.controller, self.switch_v0x01.connection.switch)
@@ -247,7 +251,11 @@ class TestMain(TestCase):
         self.switch_v0x04.connection.protocol.state = 'waiting_features_reply'
         content = {"source": self.switch_v0x04.connection}
         event = get_kytos_event_mock(name=name, content=content)
+        count = self.switch_v0x04.connection.switch.update_lastseen.call_count
+        self.assertEqual(count, 0)
         self.napp.handle_features_reply(event)
+        count = self.switch_v0x04.connection.switch.update_lastseen.call_count
+        self.assertEqual(count, 1)
         mock_freply_v0x04.assert_called_with(self.napp.controller, event)
         mock_send_desc_request_v0x04.assert_called_with(
             self.napp.controller, self.switch_v0x04.connection.switch)
