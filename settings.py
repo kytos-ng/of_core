@@ -2,6 +2,10 @@
 #: Pooling frequency
 STATS_INTERVAL = 60
 
+#: Maximum number of cycles to skip the stats request in case of
+#: overlapping/pending stats replies
+STATS_REQ_SKIP = 5
+
 #: All OpenFlow Versions
 ALL_OPENFLOW_VERSIONS = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
 
