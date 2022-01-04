@@ -675,7 +675,7 @@ class Main(KytosNApp):
         elif reason == 'OFPPR_DELETE':
             status = 'deleted'
             interface = source.switch.get_interface_by_port_no(port_no)
-            source.switch.remove_interface(interface)
+            interface.deactivate()
 
         event_name += status
         content = {'interface': interface}
