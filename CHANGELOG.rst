@@ -24,6 +24,12 @@ Fixed
 Security
 ========
 
+[1.7.0] - 2022-01-04
+********************
+
+Changed
+=======
+- Changed ``update_port_status`` on ``OFPPR_DELETE`` to deactivate an interface instead of deleting it to keep the same object reference that ``topology`` uses when managing the status of a link.
 
 [1.6.1] - 2021-05-26
 ********************
