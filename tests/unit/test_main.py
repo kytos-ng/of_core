@@ -624,7 +624,10 @@ class TestMain(TestCase):
         mock_buffer_put.assert_called()
 
         # check OFPRR_DELETE
+        mock_intf = MagicMock()
+        mock_source.switch.get_interface_by_port_no.return_value = mock_intf
         mock_port_status.reason.enum_ref(2).name = 'OFPPR_DELETE'
         self.napp.update_port_status(mock_port_status, mock_source)
         mock_port_mod.assert_called()
         mock_buffer_put.assert_called()
+        mock_intf.deactivate.assert_called()
