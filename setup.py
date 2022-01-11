@@ -198,7 +198,7 @@ class EggInfo(egg_info):
         """Python wheels are much faster (no compiling)."""
         print('Installing dependencies...')
         check_call([sys.executable, '-m', 'pip', 'install', '-r',
-                    'requirements/run.in'])
+                    'requirements/run.txt'])
 
 
 class DevelopMode(develop):
@@ -265,6 +265,16 @@ def read_version_from_json():
     return metadata['version']
 
 
+def read_requirements(path="requirements/run.txt"):
+    """Read requirements file and return a list."""
+    with open(path, "r", encoding="utf8") as file:
+        return [
+            line.strip()
+            for line in file.readlines()
+            if not line.startswith("#")
+        ]
+
+
 setup(name='kytos_of_core',
       version=read_version_from_json(),
       description='Core NApps developed by Kytos Team',
@@ -272,6 +282,7 @@ setup(name='kytos_of_core',
       author='Kytos Team',
       author_email='of-ng-dev@ncc.unesp.br',
       license='MIT',
+      install_requires=read_requirements(),
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],
       extras_require={
