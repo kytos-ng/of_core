@@ -2,14 +2,6 @@
 Overview
 ########
 
-**WARNING: As previously announced on our communication channels, the Kytos
-project will enter the "shutdown" phase on May 31, 2021. After this date,
-only critical patches (security and core bug fixes) will be accepted, and the
-project will be in "critical-only" mode for another six months (until November
-30, 2021). For more information visit the FAQ at <https://kytos.io/faq>. We'll
-have eternal gratitude to the entire community of developers and users that made
-the project so far.**
-
 |License| |Build| |Coverage| |Quality|
 
 .. attention::
@@ -402,14 +394,14 @@ Content
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-.. |License| image:: https://img.shields.io/github/license/kytos/kytos.svg
-   :target: https://github.com/kytos/of_core/blob/master/LICENSE
-.. |Build| image:: https://scrutinizer-ci.com/g/kytos/of_core/badges/build.png?b=master
+.. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
+   :target: https://github.com/kytos-ng/of_core/blob/master/LICENSE
+.. |Build| image:: https://scrutinizer-ci.com/g/kytos-ng/of_core/badges/build.png?b=master
   :alt: Build status
-  :target: https://scrutinizer-ci.com/g/kytos/of_core/?branch=master
-.. |Coverage| image:: https://scrutinizer-ci.com/g/kytos/of_core/badges/coverage.png?b=master
+  :target: https://scrutinizer-ci.com/g/kytos-ng/of_core/?branch=master
+.. |Coverage| image:: https://scrutinizer-ci.com/g/kytos-ng/of_core/badges/coverage.png?b=master
   :alt: Code coverage
-  :target: https://scrutinizer-ci.com/g/kytos/of_core/?branch=master
-.. |Quality| image:: https://scrutinizer-ci.com/g/kytos/of_core/badges/quality-score.png?b=master
+  :target: https://scrutinizer-ci.com/g/kytos-ng/of_core/?branch=master
+.. |Quality| image:: https://scrutinizer-ci.com/g/kytos-ng/of_core/badges/quality-score.png?b=master
   :alt: Code-quality score
-  :target: https://scrutinizer-ci.com/g/kytos/of_core/?branch=master
+  :target: https://scrutinizer-ci.com/g/kytos-ng/of_core/?branch=master
