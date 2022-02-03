@@ -165,6 +165,7 @@ class Main(KytosNApp):
         connection = event.source
         version_utils = self.of_core_version_utils[connection.protocol.version]
         switch = version_utils.handle_features_reply(self.controller, event)
+        switch.update_lastseen()
 
         if (connection.is_during_setup() and
                 connection.protocol.state == 'waiting_features_reply'):

@@ -24,6 +24,14 @@ Fixed
 Security
 ========
 
+[2022.1.1] - 2022-02-03
+***********************
+
+Changed
+=======
+- Added ``switch.update_lastseen()`` on handle_features_reply
+
+
 [1.7.0] - 2022-01-04
 ********************
 
