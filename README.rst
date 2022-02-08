@@ -1,15 +1,17 @@
-########
+|Stable| |Tag| |License| |Build| |Coverage| |Quality|
+
+.. raw:: html
+
+  <div align="center">
+    <h1><code>kytos/of_core</code></h1>
+
+    <strong>NApp that handles core OpenFlow messages</strong>
+  </div>
+
 Overview
-########
+========
 
-|License| |Build| |Coverage| |Quality|
-
-.. attention::
-
-    THIS NAPP IS STILL EXPERIMENTAL AND ITS EVENTS, METHODS AND STRUCTURES MAY
-    CHANGE A LOT ON THE NEXT FEW DAYS/WEEKS. USE IT AT YOUR OWN DISCRETION.
-
-The NApp **kytos/of_core** is a NApp to handle all OpenFlow basic
+``kytos/of_core`` is a NApp to handle all OpenFlow basic
 operations. The messages covered are:
 
 -  hello messages;
@@ -23,158 +25,44 @@ operations. The messages covered are:
 Besides the operations related to the messages above and OpenFlow handshake,
 this NApp emits basic OpenFlow status events.
 
-##########
 Installing
-##########
+==========
 
-All of the Kytos Network Applications are located in the NApps online
-repository. To install this NApp, run:
+To install this NApp, first, make sure to have the same venv activated as you have ``kytos`` installed on:
 
 .. code:: shell
 
-   $ kytos napps install kytos/of_core
+   $ git clone https://github.com/kytos-ng/of_core.git
+   $ cd of_core
+   $ python setup.py develop
 
-######
+
 Events
-######
+======
 
 ******
 Listen
 ******
 
-kytos/core.openflow.raw.in
-==========================
-  Handle a RawEvent and generate a kytos/core.messages.in.* event.
+Subscribed
+----------
 
-Content
--------
+- ``kytos/core.openflow.raw.in``
+- ``kytos/of_core.v0x01.messages.in.ofpt_stats_reply``
+- ``kytos/of_core.v0x0[14].messages.in.ofpt_features_reply``
+- ``kytos/of_core.v0x04.messages.in.ofpt_multipart_reply``
+- ``kytos/of_core.v0x0[14].messages.in.ofpt_echo_request``
+- ``kytos/of_core.v0x0[14].messages.out.ofpt_echo_reply``
+- ``kytos/of_core.v0x0[14].messages.out.ofpt_features_request``
+- ``kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed``
+- ``kytos/of_core.v0x0[14].messages.out.hello_failed``
 
-.. code-block:: python3
-
-    { 'message': <object> # instance of napps.kytos.of_core.utils.GenericHello message
-      'source': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x01.messages.in.ofpt_stats_reply
-================================================
-  Listen to any input of OpenFlow StatsReply in versions 1.0 (v0x01) and
-  updates the switches list with its Flow Stats.
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow StatsReply message
-      'source': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-
-kytos/of_core.v0x0[14].messages.in.ofpt_features_reply
-======================================================
-  Listen to any input of OpenFlow FeaturesReply in versions 1.0 (v0x01) or 1.3
-  (v0x04).
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow FeaturesReply message
-      'source': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x04.messages.in.ofpt_multipart_reply
-====================================================
-  Listen to any input of OpenFlow MultiPartReply in versions 1.3 (v0x04) and
-  handles Port Description Reply messages
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow MultiPartReply message
-      'source': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x0[14].messages.in.ofpt_echo_request
-====================================================
-  Listen to any input of OpenFlow EchoRequest in versions 1.0 (v0x01) or
-  1.3 (v0x04) and generate an appropriate echo reply.
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow EchoRequest message
-      'source': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-
-kytos/of_core.v0x0[14].messages.out.ofpt_echo_reply
-===================================================
-  Listen to any output of OpenFlow EchoReply in versions 1.0 (v0x01) or
-  1.3 (v0x04).
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow EchoReply message
-      'destination': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x0[14].messages.out.ofpt_features_request
-=========================================================
-  Listen to any output of OpenFlow FeaturesRequest in versions 1.0 (v0x01) or
-  1.3 (v0x04) and ensure request has actually been sent before changing state.
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow FeaturesRequest message
-      'destination': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed
-=====================================================
-  Listen to any input of OpenFlow HelloFailed in versions 1.0 (v0x01) or
-  1.3 (v0x04) and close the destination connection.
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow HelloFailed message
-      'destination': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x0[14].messages.out.hello_failed
-================================================
-  Listen to any output of OpenFlow HelloFailed in versions 1.0 (v0x01) or
-  1.3 (v0x04) and close the destination connection.
-
-Content
--------
-
-.. code-block:: python3
-
-    { 'message': <object> # instance of a python-openflow HelloFailed message
-      'destination': <object>, # instance of kytos.core.switch.Connection class
-    }
-
-********
-Generate
-********
+Published
+---------
 
 kytos/of_core.switch.interface.modified
-=======================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that a port was modified in the datapath.
 It is dispatched after parsing a PortStatus sent by a datapath.
 
@@ -184,8 +72,7 @@ will hold all **current** Port attributes. If a NApp needs to know which
 attribute was modified, it will need to compare the current list of attributes
 with the previous one.
 
-Content
--------
+Content:
 
 .. code-block:: python
 
@@ -194,12 +81,12 @@ Content
    }
 
 kytos/of_core.switch.interface.deleted
-=====================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that a port was deleted from the datapath.
 It is dispatched after parsing a PortStatus sent by a datapath.
 
-Content
--------
+Content:
 
 .. code-block:: python
 
@@ -208,12 +95,12 @@ Content
    }
 
 kytos/of_core.reachable.mac
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that a mac address is reachable from a specific switch/port.
 This information is retrieved from PacketIns generated sent by the switches.
 
-Content
--------
+Content:
 
 .. code-block:: python
 
@@ -224,11 +111,11 @@ Content
     }
 
 kytos/of_core.hello_failed
-==========================
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send Error message and emit event upon negotiation failure.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -237,11 +124,11 @@ Content
     }
 
 kytos/of_core.v0x01.messages.out.ofpt_stats_request
-===================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send a StatsRequest message for request stats of flow to switches.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -250,11 +137,11 @@ Content
     }
 
 kytos/of_core.v0x01.messages.out.ofpt_echo_request
-==================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send an EchoRequest to a datapath.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -263,11 +150,11 @@ Content
     }
 
 kytos/of_core.v0x01.messages.out.ofpt_set_config
-================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send a SetConfig message after the Openflow handshake.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -276,11 +163,11 @@ Content
     }
 
 kytos/of_core.v0x01.messages.out.ofpt_hello
-===========================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send back a Hello packet with the same version as the switch.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -289,12 +176,12 @@ Content
     }
 
 kytos/of_core.v0x04.messages.out.ofpt_multipart_request
-=======================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send a Port Description Request after the Features Reply.
 This message will be a Multipart with the type ``OFPMP_PORT_DESC``.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -303,11 +190,11 @@ Content
     }
 
 kytos/of_core.v0x04.messages.out.ofpt_echo_request
-==================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send EchoRequest to a datapath.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -316,11 +203,11 @@ Content
     }
 
 kytos/of_core.v0x04.messages.out.ofpt_set_config
-================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send a SetConfig message after the OpenFlow handshake.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -329,11 +216,11 @@ Content
     }
 
 kytos/of_core.v0x04.messages.out.ofpt_hello
-===========================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send back a Hello packet with the same version as the switch.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -342,12 +229,12 @@ Content
     }
 
 kytos/of_core.v0x01.messages.in.{name}
-======================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Emit a KytosEvent for an incoming message containing the message
 and the source.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -356,11 +243,11 @@ Content
     }
 
 kytos/of_core.v0x0[14].messages.out.EchoReply
-=============================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send an Echo Reply message to data path.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -369,11 +256,11 @@ Content
     }
 
 kytos/of_core.v0x0[14].messages.out.ofpt_error
-==============================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send Error message and emit event upon negotiation failure.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -382,11 +269,11 @@ Content
     }
 
 kytos/of_core.v0x0[14].messages.out.ofpt_features_request
-=========================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Send a feature request to the switch.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -405,3 +292,7 @@ Content
 .. |Quality| image:: https://scrutinizer-ci.com/g/kytos-ng/of_core/badges/quality-score.png?b=master
   :alt: Code-quality score
   :target: https://scrutinizer-ci.com/g/kytos-ng/of_core/?branch=master
+.. |Stable| image:: https://img.shields.io/badge/stability-stable-green.svg
+   :target: https://github.com/kytos-ng/of_core
+.. |Tag| image:: https://img.shields.io/github/tag/kytos-ng/of_core.svg
+   :target: https://github.com/kytos-ng/of_core/tags
