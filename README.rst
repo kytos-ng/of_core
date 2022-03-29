@@ -94,6 +94,36 @@ Content:
     'interface': <interface> # Instance of Interface class
    }
 
+
+kytos/of_core.switch.interface.created
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that an interface was created.
+
+Content:
+
+.. code-block:: python
+
+   {
+    'interface': <interface> # Instance of Interface class
+   }
+
+
+kytos/of_core.switch.interfaces.created
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that interfaces were created.
+
+It's meant to facilitate bulk updates or inserts.
+
+Content:
+
+.. code-block:: python
+
+   {
+    'interfaces': [<interface>] # Instance of Interface class
+   }
+
 kytos/of_core.reachable.mac
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

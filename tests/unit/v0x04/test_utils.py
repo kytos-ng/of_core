@@ -51,7 +51,7 @@ class TestUtils(TestCase):
         call_count = self.mock_switch.update_or_create_interface.call_count
         self.assertEqual(call_count, 1)
         mock_event_buffer.assert_called()
-        self.assertEqual(self.mock_controller.buffers.app.put.call_count, 2)
+        self.assertEqual(self.mock_controller.buffers.app.put.call_count, 3)
 
         self.mock_switch.update_or_create_interface.call_count = 0
         self.mock_controller.buffers.app.put.call_count = 0
@@ -59,7 +59,7 @@ class TestUtils(TestCase):
         call_count = self.mock_switch.update_or_create_interface.call_count
         self.assertEqual(call_count, 1)
         mock_event_buffer.assert_called()
-        self.assertEqual(self.mock_controller.buffers.app.put.call_count, 2)
+        self.assertEqual(self.mock_controller.buffers.app.put.call_count, 3)
 
     @patch('napps.kytos.of_core.v0x04.utils.emit_message_out')
     def test_send_echo(self, mock_emit_message_out):
