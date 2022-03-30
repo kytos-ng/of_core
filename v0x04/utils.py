@@ -99,6 +99,7 @@ def handle_features_reply(controller, event):
 
 def handle_port_desc(controller, switch, port_list):
     """Update interfaces on switch based on port_list information."""
+    interfaces = []
     for port in port_list:
         config = port.config
         if (port.supported == 0 and
@@ -114,6 +115,7 @@ def handle_port_desc(controller, switch, port_list):
                         features=port.curr,
                         config=config,
                         speed=port.curr_speed.value)
+        interfaces.append(interface)
 
         event_name = 'kytos/of_core.switch.interface.created'
         interface_event = KytosEvent(name=event_name,
@@ -129,6 +131,11 @@ def handle_port_desc(controller, switch, port_list):
                                         }
                                     })
         controller.buffers.app.put(port_event)
+        controller.buffers.app.put(interface_event)
+    if interfaces:
+        event_name = 'kytos/of_core.switch.interfaces.created'
+        interface_event = KytosEvent(name=event_name,
+                                     content={'interfaces': interfaces})
         controller.buffers.app.put(interface_event)
 
 

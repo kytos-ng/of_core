@@ -8,6 +8,7 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Added
 =====
+- Added new KytosEvent ``kytos/of_core.switch.interfaces.created`` meant for bulk updates or insertions.
 
 Changed
 =======
