@@ -1,9 +1,10 @@
 """Test Action abstraction for v0x01 and v0x04."""
 import unittest
 
+from pyof.foundation.basic_types import UBInt16, UBInt32
+
 from napps.kytos.of_core.v0x01.flow import Action as Action01
 from napps.kytos.of_core.v0x04.flow import Action as Action04
-from pyof.foundation.basic_types import UBInt16, UBInt32
 
 
 class TestAction(unittest.TestCase):
@@ -45,14 +46,14 @@ class TestAction(unittest.TestCase):
                     'action_type': 'push_vlan',
                     'tag_type': 'c',
                 }
-            },                       
+            },
             {
                 'tests': [Action04],
                 'action': {
                     'action_type': 'push_vlan',
                     'tag_type': 's',
                 }
-            }, 
+            },
         ]
         for action_class in Action01, Action04:
             with self.subTest(action_class=action_class):
