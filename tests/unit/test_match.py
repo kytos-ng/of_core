@@ -17,11 +17,35 @@ class TestMatch(TestCase):
         'dl_vlan_pcp': 3,
         'dl_type': 4,
         'nw_proto': 5,
-        'nw_src': '1.2.3.4/32',
+        'nw_src': '1.2.3.4/31',
         'nw_dst': '5.6.7.0/24',
         'tp_src': 6,
         'tp_dst': 7,
     }
+
+    EXPECTED_OF_13 = {
+        'in_phy_port': 2,
+        'ip_dscp': 1,
+        'ip_ecn': 3,
+        'udp_src': 4,
+        'udp_dst': 5,
+        'sctp_src': 6,
+        'sctp_dst': 7,
+        'icmpv4_type': 8,
+        'icmpv4_code': 9,
+        'arp_op': 10,
+        'arp_spa': '4.5.6.7/30',
+        'arp_tpa': '8.9.10.11/29',
+        'arp_sha': '11:22:33:44:55:66',
+        'arp_tha': 'aa:bb:cc:dd:ee:ff',
+        'mpls_lab': 11,
+        'mpls_tc': 4,
+        'mpls_bos': 5,
+        'pbb_isid': 45,
+        'metadata': 4567,
+        'tun_id': 6789,
+    }
+    EXPECTED_OF_13.update(EXPECTED)
 
     def test_all_fields(self):
         """Test all match fields from and to dict."""
@@ -45,3 +69,11 @@ class TestMatch(TestCase):
         response = Match04.from_of_match(mock_match)
         self.assertEqual(mock_factory.from_of_tlv.call_count, 1)
         self.assertIsInstance(response, Match04)
+
+    def test_match_tlv(self):
+        """Test OF 1.3 matches"""
+        match = Match04.from_dict(self.EXPECTED_OF_13)
+        self.assertDictEqual(
+            Match04.from_of_match(match.as_of_match()).as_dict(),
+            self.EXPECTED_OF_13
+        )
