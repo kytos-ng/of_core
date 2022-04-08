@@ -291,6 +291,7 @@ setup(name='kytos_of_core',
               'pip-tools',
               'yala',
               'tox',
+              'pytest',
           ],
       },
       cmdclass={
