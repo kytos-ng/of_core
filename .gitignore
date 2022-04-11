@@ -94,3 +94,7 @@ ENV/
 .ropeproject
 *.png
 *.rrd
+
+# IDEs
+.idea
+.vscode
