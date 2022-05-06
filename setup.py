@@ -283,6 +283,7 @@ setup(name='kytos_of_core',
       author_email='of-ng-dev@ncc.unesp.br',
       license='MIT',
       install_requires=read_requirements(),
+      packages=[],
       setup_requires=['pytest-runner'],
       tests_require=['pytest==7.0.0'],
       extras_require={
