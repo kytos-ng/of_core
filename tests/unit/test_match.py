@@ -86,3 +86,9 @@ class TestMatch(TestCase):
             Match04.from_of_match(match.as_of_match()).as_dict(),
             self.EXPECTED_OF_13
         )
+
+    def test_match01_as_dict(self) -> None:
+        """Test match01 as_dict."""
+        match_values = {'in_port': 1, 'dl_vlan': 2}
+        match_01 = Match01(**match_values)
+        assert len(match_01.as_dict()) == len(match_values)
