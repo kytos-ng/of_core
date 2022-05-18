@@ -1,4 +1,5 @@
 """Deal with OpenFlow 1.0 specificities related to flows."""
+from pyof.foundation.basic_types import UBInt8, UBInt16
 from pyof.v0x01.common.action import ActionOutput as OFActionOutput
 from pyof.v0x01.common.action import ActionVlanVid as OFActionVlanVid
 from pyof.v0x01.common.flow_match import Match as OFMatch
@@ -37,6 +38,26 @@ class Match(MatchBase):
             if value is not None:
                 setattr(match, field, value)
         return match
+
+    def as_dict(self):
+        """Return dict representation."""
+        default_fields = {
+          'in_port': UBInt16(0),
+          'dl_src': '00:00:00:00:00:00',
+          'dl_dst': '00:00:00:00:00:00',
+          'dl_vlan': UBInt16(0),
+          'dl_vlan_pcp': UBInt8(0),
+          'dl_type': UBInt16(0),
+          'nw_proto': UBInt8(0),
+          'nw_src': '0.0.0.0',
+          'nw_dst': '0.0.0.0',
+          'tp_src': UBInt16(0),
+          'tp_dst': UBInt16(0)
+        }
+        return {
+            k: v for k, v in super().as_dict().items()
+            if v is not None and k in default_fields and v != default_fields[k]
+        }
 
 
 class ActionOutput(ActionBase):
