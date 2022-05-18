@@ -13,7 +13,7 @@ Added
 
 Changed
 =======
-- Changed OF10 ``as_dict`` to only included explicit set values
+- Changed Match OF10 ``as_dict`` to only included explicit set values
 
 Deprecated
 ==========
