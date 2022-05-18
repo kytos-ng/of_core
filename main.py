@@ -192,6 +192,10 @@ class Main(KytosNApp):
         if switch.is_enabled():
             self._request_flow_list(switch)
 
+    def handle_handshake_completed_request_flow_list(self, switch):
+        """Request an flow list right after the handshake is completed."""
+        self._request_flow_list(switch)
+
     @listen_to('kytos/of_core.v0x04.messages.in.ofpt_multipart_reply')
     def on_multipart_reply(self, event):
         """Handle multipart replies for v0x04 switches.
