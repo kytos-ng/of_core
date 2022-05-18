@@ -91,4 +91,4 @@ class TestMatch(TestCase):
         """Test match01 as_dict."""
         match_values = {'in_port': 1, 'dl_vlan': 2}
         match_01 = Match01(**match_values)
-        assert len(match_01.as_dict()) == len(match_values)
+        self.assertEqual(len(match_01.as_dict()), len(match_values))

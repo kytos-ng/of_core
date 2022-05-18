@@ -4,7 +4,8 @@ from unittest.mock import MagicMock, patch
 
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
 from napps.kytos.of_core.v0x01.flow import Flow as Flow01
-from napps.kytos.of_core.v0x04.flow import Flow as Flow04, Match as Match04
+from napps.kytos.of_core.v0x04.flow import Flow as Flow04
+from napps.kytos.of_core.v0x04.flow import Match as Match04
 
 
 class TestFlowFactory(TestCase):
@@ -188,7 +189,8 @@ class TestFlow(TestCase):
                 self.assertEqual(response.hard_timeout,
                                  self.requested['hard_timeout'])
 
-    def test_match_id(self):
+    @staticmethod
+    def test_match_id():
         """Test match_id."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid, 0x04)
