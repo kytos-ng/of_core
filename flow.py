@@ -99,14 +99,12 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
     def match_id(self):
         """Return this flow unique match identifier.
 
-        This is meant for effecient strict match lookups.
+        This is meant for effecient overlapping match updates or insertions.
 
         Returns:
-            str: Flow unique identifier (md5sum).
+            str: Flow unique match identifier (md5sum).
 
         """
-        match_field = self.match.as_dict()
-        match_field.pop('instructions', None)
         flow_match_fields = {
             'switch': self.switch.id,
             'table_id': self.table_id,
