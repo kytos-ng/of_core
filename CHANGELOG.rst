@@ -23,6 +23,7 @@ Removed
 
 Fixed
 =====
+- OFPT_ERROR message could crash when logging it.
 
 Security
 ========
