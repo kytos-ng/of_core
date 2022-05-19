@@ -190,7 +190,7 @@ class Main(KytosNApp):
         """
         switch = event.content['switch']
         if switch.is_enabled():
-            self._request_flow_list(switch)
+            self.handle_handshake_completed_request_flow_list(switch)
 
     def handle_handshake_completed_request_flow_list(self, switch):
         """Request an flow list right after the handshake is completed."""
