@@ -348,8 +348,7 @@ class Main(KytosNApp):
                         log.error(f"OFPT_ERROR: type {message.error_type},"
                                   f" error code {message.code},"
                                   f" from switch {switch.id},"
-                                  f" xid {message.header.xid}/"
-                                  f"{message.header.xid:x}")
+                                  f" xid {message.header.xid}")
                 except (UnpackException, AttributeError) as err:
                     log.error(err)
                     if isinstance(err, AttributeError):
