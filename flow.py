@@ -95,6 +95,34 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
         md5sum.update(flow_str.encode('utf-8'))
         return md5sum.hexdigest()
 
+    @property
+    def match_id(self):
+        """Return this flow unique match identifier.
+
+        This is meant for effecient overlapping match updates or insertions.
+
+        Returns:
+            str: Flow unique match identifier (md5sum).
+
+        """
+        flow_match_fields = {
+            'switch': self.switch.id,
+            'table_id': self.table_id,
+            'match': self.match.as_dict(),
+            'priority': self.priority,
+            'cookie': self.cookie,
+        }
+        version = self.switch.connection.protocol.version
+        if version == 0x01:
+            flow_str = json.dumps(flow_match_fields,
+                                  cls=v0x01.utils.JSONEncoderOF10,
+                                  sort_keys=True)
+        else:
+            flow_str = json.dumps(flow_match_fields, sort_keys=True)
+        md5sum = md5()
+        md5sum.update(flow_str.encode('utf-8'))
+        return md5sum.hexdigest()
+
     def as_dict(self, include_id=True):
         """Return the Flow as a serializable Python dictionary.
 

@@ -9,9 +9,11 @@ All notable changes to the of_core NApp will be documented in this file.
 Added
 =====
 - Added new KytosEvent ``kytos/of_core.switch.interfaces.created`` meant for bulk updates or insertions.
+- Added ``match_id`` attribute on ``Flow``  as a unique match identifier for efficient overlapping matches updates, minimizing extra DB lookups that would be needed otherwise.
 
 Changed
 =======
+- Changed Match OF10 ``as_dict`` to only included explicit set values
 
 Deprecated
 ==========

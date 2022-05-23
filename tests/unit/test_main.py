@@ -13,7 +13,7 @@ from napps.kytos.of_core.utils import NegotiationException
 from tests.helpers import get_controller_mock
 
 
-# pylint: disable=protected-access, too-many-public-methods
+# pylint: disable=protected-access, too-many-public-methods, invalid-name
 class TestMain(TestCase):
     """Test the Main class."""
 
@@ -139,15 +139,12 @@ class TestMain(TestCase):
         """Test request flow list."""
         (mock_update_flow_list_v0x01, mock_update_flow_list_v0x04, _) = args
         mock_update_flow_list_v0x04.return_value = 0xABC
-        name = 'kytos/of_core.handshake.completed'
-        content = {"switch": self.switch_v0x01}
-        event = get_kytos_event_mock(name=name, content=content)
-        self.napp.on_handshake_completed_request_flow_list(event)
+        sw = self.switch_v0x01
+        self.napp.handle_handshake_completed_request_flow_list(sw)
         mock_update_flow_list_v0x01.assert_called_with(self.napp.controller,
                                                        self.switch_v0x01)
-        content = {"switch": self.switch_v0x04}
-        event = get_kytos_event_mock(name=name, content=content)
-        self.napp.on_handshake_completed_request_flow_list(event)
+        sw = self.switch_v0x04
+        self.napp.handle_handshake_completed_request_flow_list(sw)
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
 

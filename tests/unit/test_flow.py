@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
 from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
+from napps.kytos.of_core.v0x04.flow import Match as Match04
 
 
 class TestFlowFactory(TestCase):
@@ -187,6 +188,28 @@ class TestFlow(TestCase):
                                  self.requested['idle_timeout'])
                 self.assertEqual(response.hard_timeout,
                                  self.requested['hard_timeout'])
+
+    @staticmethod
+    def test_match_id():
+        """Test match_id."""
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid, 0x04)
+        mock_switch.id = dpid
+        flow_one = {"match": Match04(**{"in_port": 1, "dl_vlan": 2})}
+        flow_two = {"match": Match04(**{"in_port": 1, "dl_vlan": 2})}
+        flow_three = {"match": Match04(**{"in_port": 1, "dl_vlan": 3})}
+
+        assert Flow04(mock_switch, **flow_one).match_id == Flow04(
+            mock_switch, **flow_two
+        ).match_id
+        assert Flow04(mock_switch, **flow_one).match_id != Flow04(
+            mock_switch, **flow_three
+        ).match_id
+
+        flow_two["cookie"] = 0x10
+        assert Flow04(mock_switch, **flow_one).match_id != Flow04(
+            mock_switch, **flow_two
+        ).match_id
 
 
 class TestFlowBase(TestCase):
