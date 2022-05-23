@@ -349,7 +349,7 @@ class Main(KytosNApp):
                                   f" error code {message.code},"
                                   f" from switch {switch.id},"
                                   f" xid {message.header.xid}/"
-                                  f"{message.header.xid:x}")
+                                  f"0x{message.header.xid.value:x}")
                 except (UnpackException, AttributeError) as err:
                     log.error(err)
                     if isinstance(err, AttributeError):
