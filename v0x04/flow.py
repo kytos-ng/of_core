@@ -356,7 +356,7 @@ class Flow(FlowBase):
         """Create a Flow instance from a dictionary."""
         flow = super().from_dict(flow_dict, switch)
         flow.instructions = []
-        if 'actions' in flow_dict:
+        if 'actions' in flow_dict and flow_dict['actions']:
             instruction_apply_actions = InstructionApplyAction()
             for action_dict in flow_dict['actions']:
                 action = cls._action_factory.from_dict(action_dict)

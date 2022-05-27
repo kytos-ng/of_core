@@ -2,10 +2,43 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
 from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
 from napps.kytos.of_core.v0x04.flow import Match as Match04
+
+
+@pytest.mark.parametrize(
+    "flow1_dict, flow2_dict",
+    [
+        (
+            {"match": {"in_port": 1, "dl_vlan": 105}, "actions": []},
+            {"match": {"in_port": 1, "dl_vlan": 105}},
+        ),
+        (
+            {
+                "match": {},
+                "cookie": 0,
+                "table_id": 0,
+                "priority": 0x8000,
+                "idle_timeout": 0,
+                "hard_timeout": 0,
+            },
+            {"match": {}},
+        )
+    ],
+)
+def test_equivalent_flow_ids(flow1_dict, flow2_dict):
+    """Test equivalent flow ids."""
+    switch = MagicMock()
+    dpid = "00:00:00:00:00:00:00:01"
+    switch.id = dpid
+    flow1 = Flow04.from_dict(flow1_dict, switch)
+    flow2 = Flow04.from_dict(flow2_dict, switch)
+    assert flow1.as_dict(include_id=False) == flow2.as_dict(include_id=False)
+    assert flow1.id == flow2.id
 
 
 class TestFlowFactory(TestCase):
