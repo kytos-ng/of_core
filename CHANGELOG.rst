@@ -24,6 +24,7 @@ Removed
 Fixed
 =====
 - OFPT_ERROR message could crash when logging it.
+- Fixed inconsistent Flow04 id for empty list actions.
 
 Security
 ========
