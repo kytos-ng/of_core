@@ -109,7 +109,9 @@ class TestCoverage(Test):
 
     def run(self):
         """Run tests quietly and display coverage report."""
-        cmd = 'python3 -m pytest --cov=. tests/ %s' % self.get_args()
+        # pylint: disable=fixme
+        # TODO revert this commit when issue 68 gets fixed
+        cmd = 'python3 -m pytest --cov=. tests/unit %s' % self.get_args()
         try:
             check_call(cmd, shell=True)
         except CalledProcessError as exc:
