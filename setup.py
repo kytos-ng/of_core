@@ -56,32 +56,22 @@ class TestCommand(Command):
     """Test tags decorators."""
 
     user_options = [
-        ('size=', None, 'Specify the size of tests to be executed.'),
-        ('type=', None, 'Specify the type of tests to be executed.'),
+        ("k=", None, "Specify a pytest -k expression."),
     ]
-
-    sizes = ('small', 'medium', 'large', 'all')
-    types = ('unit', 'integration', 'e2e')
 
     def get_args(self):
         """Return args to be used in test command."""
-        return '--size %s --type %s' % (self.size, self.type)
+        if self.k:
+            return f"-k '{self.k}'"
+        return ""
 
     def initialize_options(self):
         """Set default size and type args."""
-        self.size = 'all'
-        self.type = 'unit'
+        self.k = ""
 
     def finalize_options(self):
         """Post-process."""
-        try:
-            assert self.size in self.sizes, ('ERROR: Invalid size:'
-                                             f':{self.size}')
-            assert self.type in self.types, ('ERROR: Invalid type:'
-                                             f':{self.type}')
-        except AssertionError as exc:
-            print(exc)
-            sys.exit(-1)
+        pass
 
 
 class Cleaner(SimpleCommand):
@@ -101,17 +91,9 @@ class Test(TestCommand):
 
     description = 'run tests and display results'
 
-    def get_args(self):
-        """Return args to be used in test command."""
-        markers = self.size
-        if markers == "small":
-            markers = 'not medium and not large'
-        size_args = "" if self.size == "all" else "-m '%s'" % markers
-        return '--addopts="tests/%s %s"' % (self.type, size_args)
-
     def run(self):
         """Run tests."""
-        cmd = 'python setup.py pytest %s' % self.get_args()
+        cmd = 'python3 -m pytest tests/ %s' % self.get_args()
         try:
             check_call(cmd, shell=True)
         except CalledProcessError as exc:
@@ -127,8 +109,9 @@ class TestCoverage(Test):
 
     def run(self):
         """Run tests quietly and display coverage report."""
-        cmd = 'coverage3 run setup.py pytest %s' % self.get_args()
-        cmd += '&& coverage3 report'
+        # pylint: disable=fixme
+        # TODO revert this commit when issue 68 gets fixed
+        cmd = 'python3 -m pytest --cov=. tests/unit %s' % self.get_args()
         try:
             check_call(cmd, shell=True)
         except CalledProcessError as exc:
@@ -146,33 +129,6 @@ class Linter(SimpleCommand):
         """Run yala."""
         print('Yala is running. It may take several seconds...')
         check_call('yala *.py v0x?? tests', shell=True)
-
-
-class CITest(TestCommand):
-    """Run all CI tests."""
-
-    description = 'run all CI tests: unit and doc tests, linter'
-
-    def run(self):
-        """Run unit tests with coverage, doc tests and linter."""
-        coverage_cmd = 'python3 setup.py coverage %s' % self.get_args()
-        lint_cmd = 'python3 setup.py lint'
-        cmd = '%s && %s' % (coverage_cmd, lint_cmd)
-        check_call(cmd, shell=True)
-
-
-# class KytosInstall:
-#     """Common code for all install types."""
-#
-#     @staticmethod
-#     def enable_core_napps():
-#         """Enable a NAPP by creating a symlink."""
-#         (ENABLED_PATH / 'kytos').mkdir(parents=True, exist_ok=True)
-#         for napp in CORE_NAPPS:
-#             napp_path = Path('kytos', napp)
-#             src = ENABLED_PATH / napp_path
-#             dst = INSTALLED_PATH / napp_path
-#             src.symlink_to(dst)
 
 
 class InstallMode(install):
@@ -284,11 +240,10 @@ setup(name='kytos_of_core',
       license='MIT',
       install_requires=read_requirements(),
       packages=[],
-      setup_requires=['pytest-runner'],
-      tests_require=['pytest==7.0.0'],
       extras_require={
           'dev': [
-              'coverage',
+              'pytest==7.0.0',
+              'pytest-cov==3.0.0',
               'pip-tools',
               'yala',
               'tox',
@@ -297,7 +252,6 @@ setup(name='kytos_of_core',
       },
       cmdclass={
           'clean': Cleaner,
-          'ci': CITest,
           'coverage': TestCoverage,
           'develop': DevelopMode,
           'install': InstallMode,
