@@ -2,6 +2,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock, create_autospec, patch
 
+import pytest
 from pyof.foundation.network_types import Ethernet
 from pyof.v0x01.controller2switch.common import StatsType
 from pyof.v0x04.controller2switch.common import MultipartType
@@ -12,8 +13,323 @@ from kytos.lib.helpers import (get_connection_mock, get_kytos_event_mock,
 from napps.kytos.of_core.utils import NegotiationException
 from tests.helpers import get_controller_mock
 
+# pylint: disable=protected-access, invalid-name
 
-# pylint: disable=protected-access, too-many-public-methods, invalid-name
+
+class TestNApp:
+    """Test NApp Main class, pytest test suite. """
+
+    @patch('napps.kytos.of_core.main.Main.process_multipart_messages')
+    @patch('napps.kytos.of_core.main.of_slicer')
+    @patch('napps.kytos.of_core.main.Main._negotiate')
+    @patch('napps.kytos.of_core.main.Main.aemit_message_in')
+    async def test_on_raw_in(
+        self,
+        mock_aemit_message_in,
+        mock_negotiate,
+        mock_of_slicer,
+        mock_process_multipart_messages,
+        napp,
+    ):
+        """Test on_raw_in."""
+
+        mock_packets = MagicMock()
+        mock_data = MagicMock()
+        mock_connection = MagicMock()
+        mock_connection.is_new.side_effect = [True, False, True, False]
+        mock_connection.is_during_setup.return_value = False
+        mock_of_slicer.return_value = [[mock_packets, mock_packets], b'']
+        name = 'kytos/core.openflow.raw.in'
+        content = {'source': mock_connection, 'new_data': mock_data}
+        mock_event = get_kytos_event_mock(name=name, content=content)
+
+        await napp.on_raw_in(mock_event)
+        mock_negotiate.assert_called()
+        mock_aemit_message_in.assert_called()
+
+        # Test Fail
+        mock_negotiate.side_effect = NegotiationException('Foo')
+        await napp.on_raw_in(mock_event)
+        assert mock_connection.close.call_count == 1
+
+        mock_connection.close.call_count = 0
+        mock_connection.protocol.unpack.side_effect = AttributeError()
+        await napp.on_raw_in(mock_event)
+        assert mock_connection.close.call_count == 1
+
+        # test message type OFPT_MULTIPART_REPLY
+        mock_message = MagicMock()
+        mock_message.header.xid = 0xABC
+        mock_message.header.message_type.name = 'ofpt_multipart_reply'
+        mock_connection.protocol.unpack.side_effect = [mock_message]*2
+        mock_connection.is_new.side_effect = [False, False]
+        mock_process_multipart_messages.call_count = 0
+        messages = {0xABC: [mock_message]*2}
+        await napp.on_raw_in(mock_event)
+        mock_process_multipart_messages.assert_called_with(mock_connection,
+                                                           messages)
+
+    @patch('pyof.utils.v0x04.asynchronous.error_msg.ErrorMsg')
+    @patch('napps.kytos.of_core.main.Main.aemit_message_out')
+    @patch('kytos.core.buffers.KytosEventBuffer.aput')
+    async def test_fail_negotiation(
+        self,
+        mock_event_buffer,
+        mock_aemit_message_out,
+        mock_error_msg,
+        napp
+    ):
+        """Test fail_negotiation."""
+        mock_connection = MagicMock()
+        mock_message = MagicMock()
+        mock_connection.id = "A"
+        mock_message.side_effect = 4
+        await napp.fail_negotiation(mock_connection, mock_message)
+        mock_event_buffer.assert_called()
+        mock_aemit_message_out.assert_called_with(mock_connection,
+                                                  mock_error_msg.return_value)
+
+    @patch('napps.kytos.of_core.main.Main.send_features_request')
+    @patch('napps.kytos.of_core.v0x04.utils.say_hello')
+    @patch('napps.kytos.of_core.main._get_version_from_bitmask')
+    @patch('napps.kytos.of_core.main._get_version_from_header')
+    async def test_negotiate(
+        self,
+        mock_version_header,
+        mock_version_bitmask,
+        mock_say_hello,
+        mock_features_request,
+        napp
+    ):
+        """Test negotiate."""
+        mock_version_header.return_value = 4
+        mock_version_bitmask.side_effect = [4, None]
+        mock_connection = MagicMock()
+        mock_message = MagicMock()
+        type(mock_message).versions = PropertyMock(side_effect=[4, 4, 4,
+                                                                False])
+
+        await napp._negotiate(mock_connection, mock_message)
+        mock_version_bitmask.assert_called_with(mock_message.versions)
+        mock_say_hello.assert_called_with(napp.controller,
+                                          mock_connection)
+        mock_features_request.assert_called_with(mock_connection)
+
+        await napp._negotiate(mock_connection, mock_message)
+        mock_say_hello.assert_called_with(napp.controller,
+                                          mock_connection)
+        mock_features_request.assert_called_with(mock_connection)
+
+        # Test Fail
+        with pytest.raises(NegotiationException):
+            type(mock_message).versions = PropertyMock(return_value=[4])
+            await napp._negotiate(mock_connection, mock_message)
+
+    @patch('pyof.utils.v0x04.controller2switch.'
+           'features_request.FeaturesRequest')
+    @patch('napps.kytos.of_core.main.Main.aemit_message_out')
+    async def test_send_features_request(
+        self,
+        mock_emit_message_out,
+        mock_features_request,
+        napp
+    ):
+        """Test send send_features_request."""
+        mock_destination = MagicMock()
+        mock_destination.protocol.version = 4
+        mock_features_request.return_value = "A"
+        await napp.send_features_request(mock_destination)
+        mock_features_request.assert_called()
+        mock_emit_message_out.assert_called_with(mock_destination, "A")
+
+    @patch('napps.kytos.of_core.settings.SEND_FEATURES_REQUEST_ON_ECHO')
+    @patch('napps.kytos.of_core.main.Main.send_features_request')
+    async def test_on_queued_openflow_echo_reply(
+        self,
+        mock_send_features_request,
+        mock_settings,
+        napp
+    ):
+        """Test handle queued OpenFlow echo reply messages."""
+        mock_settings.return_value = True
+        mock_event = MagicMock()
+        await napp.on_queued_openflow_echo_reply(mock_event)
+        mock_send_features_request.assert_called_with(mock_event.destination)
+
+    @patch('napps.kytos.of_core.main.Main.aemit_message_in')
+    async def test_process_multipart_messages(
+        self,
+        mock_aemit_message_in,
+        switch_one,
+        napp
+    ):
+        """Test process_multipart_messages."""
+        dpid = switch_one.id
+        mock_connection = MagicMock()
+        mock_connection.switch = switch_one
+        napp._multipart_replies_xids = {dpid: {0xABC: 0}}
+        mock_message = MagicMock()
+        messages = {0xABC: [mock_message]*2}
+        mock_aemit_message_in.call_count = 0
+        await napp.process_multipart_messages(mock_connection, messages)
+        assert mock_aemit_message_in.call_count == 2
+        assert napp._multipart_replies_xids[dpid][0xABC] == 2
+
+    @patch('napps.kytos.of_core.main.Main._handle_multipart_flow_stats')
+    @patch('napps.kytos.of_core.v0x04.utils.handle_port_desc')
+    async def test_on_multipart_reply(
+        self,
+        mock_of_core_v0x04_utils,
+        mock_from_of_flow_stats_v0x04,
+        switch_one,
+        napp,
+    ):
+        """Test on multipart reply."""
+        flow_msg = MagicMock()
+        flow_msg.multipart_type = MultipartType.OFPMP_FLOW
+        name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
+        content = {"source": switch_one.connection,
+                   "message": flow_msg}
+        event = get_kytos_event_mock(name=name, content=content)
+
+        await napp.on_multipart_reply(event)
+        mock_from_of_flow_stats_v0x04.assert_called_with(
+            flow_msg, switch_one.connection.switch)
+
+        ofpmp_port_desc = MagicMock()
+        ofpmp_port_desc.body = "A"
+        ofpmp_port_desc.multipart_type = MultipartType.OFPMP_PORT_DESC
+        content = {"source": switch_one.connection,
+                   "message": ofpmp_port_desc}
+        event = get_kytos_event_mock(name=name, content=content)
+        await napp.on_multipart_reply(event)
+        mock_of_core_v0x04_utils.assert_called_with(
+            napp.controller, switch_one.connection.switch,
+            ofpmp_port_desc.body)
+
+        ofpmp_desc = MagicMock()
+        ofpmp_desc.body = "A"
+        ofpmp_desc.multipart_type = MultipartType.OFPMP_DESC
+        content = {"source": switch_one.connection,
+                   "message": ofpmp_desc}
+        event = get_kytos_event_mock(name=name, content=content)
+        switch_update = switch_one.connection.switch.update_description
+        await napp.on_multipart_reply(event)
+        assert switch_update.call_count == 1
+
+    @patch('napps.kytos.of_core.main.log')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    @patch('napps.kytos.of_core.main.Main._update_switch_flows')
+    @patch('napps.kytos.of_core.v0x04.flow.Flow.from_of_flow_stats')
+    @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
+    async def test_on_multipart_flow_stats(
+        self,
+        mock_is_multipart_reply_ours,
+        mock_from_of_flow_stats_v0x04,
+        mock_update_switch_flows,
+        mock_buffer_put,
+        mock_log,
+        switch_one,
+        napp
+    ):
+        """Test on multipart flow stats."""
+        mock_is_multipart_reply_ours.return_value = True
+        mock_from_of_flow_stats_v0x04.return_value = "ABC"
+
+        flow_msg = MagicMock()
+        flow_msg.body = "A"
+        flow_msg.flags.value = 2
+        flow_msg.body_type = StatsType.OFPST_FLOW
+        flow_msg.header.xid = 0xABC
+
+        dpid = switch_one.id
+        napp._multipart_replies_xids = {dpid: {0xABC: 1}}
+
+        await napp._handle_multipart_flow_stats(flow_msg, switch_one)
+
+        mock_is_multipart_reply_ours.assert_called_with(flow_msg,
+                                                        switch_one,
+                                                        'flows')
+        mock_from_of_flow_stats_v0x04.assert_called_with(flow_msg.body,
+                                                         switch_one)
+        mock_update_switch_flows.assert_called_with(switch_one)
+        assert napp._multipart_replies_xids[dpid][0xABC] == 0
+
+        # Test when some parts of the multipart reply are missing
+        napp._multipart_replies_xids = {dpid: {0xABC: 2}}
+        await napp._handle_multipart_flow_stats(flow_msg, switch_one)
+
+        # Test when update_switch_flows fails
+        napp._multipart_replies_xids = {dpid: {0xABC: 1}}
+        mock_update_switch_flows.side_effect = KeyError()
+        mock_buffer_put.call_count = 0
+        mock_log.error.call_count = 0
+        await napp._handle_multipart_flow_stats(flow_msg, switch_one)
+        assert mock_log.error.call_count == 1
+        mock_buffer_put.assert_not_called()
+
+    @patch('napps.kytos.of_core.main.Main._new_port_stats')
+    @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
+    async def test_handle_multipart_port_stats(
+        self,
+        mock_is_multipart_reply_ours,
+        mock_new_port_stats,
+        switch_one,
+        napp,
+    ):
+        """Test handle multipart flow stats."""
+        mock_is_multipart_reply_ours.return_value = True
+
+        port_stats_msg = MagicMock()
+        port_stats_msg.body = "A"
+        port_stats_msg.flags.value = 2
+        port_stats_msg.multipart_type = MultipartType.OFPMP_PORT_STATS
+
+        await napp._handle_multipart_port_stats(port_stats_msg,
+                                                switch_one)
+
+        mock_is_multipart_reply_ours.assert_called_with(port_stats_msg,
+                                                        switch_one,
+                                                        'ports')
+        mock_new_port_stats.assert_called_with(switch_one)
+
+    @patch('napps.kytos.of_core.main.Main.update_port_status')
+    @patch('napps.kytos.of_core.main.Main.update_links')
+    async def test_aemit_message_in(
+        self,
+        mock_update_links,
+        mock_update_port_status,
+        napp
+    ):
+        """Test aemit_message_in."""
+        mock_port_connection = MagicMock()
+        msg_port_mock = MagicMock()
+        msg_port_mock.header.message_type.name = 'ofpt_port_status'
+        mock_port_connection.side_effect = True
+        await napp.aemit_message_in(mock_port_connection,
+                                    msg_port_mock)
+        mock_update_port_status.assert_called_with(msg_port_mock,
+                                                   mock_port_connection)
+
+        mock_packet_in_connection = MagicMock()
+        msg_packet_in_mock = MagicMock()
+        mock_packet_in_connection.side_effect = True
+        msg_packet_in_mock.header.message_type.name = 'ofpt_packet_in'
+        await napp.aemit_message_in(mock_packet_in_connection,
+                                    msg_packet_in_mock)
+        mock_update_links.assert_called_with(msg_packet_in_mock,
+                                             mock_packet_in_connection)
+
+    @patch('napps.kytos.of_core.main.aemit_message_out')
+    async def test_emit_message_out(self, mock_aemit_message_out, napp):
+        """Test emit message_out."""
+        mock_connection = MagicMock()
+        mock_message = MagicMock()
+        mock_connection.is_alive.return_value = True
+        await napp.aemit_message_out(mock_connection, mock_message)
+        mock_aemit_message_out.assert_called()
+
+
 class TestMain(TestCase):
     """Test the Main class."""
 
@@ -175,44 +491,6 @@ class TestMain(TestCase):
         self.napp.handle_stats_reply(event)
         self.assertEqual(switch_update.call_count, 1)
 
-    @patch('napps.kytos.of_core.main.Main._handle_multipart_flow_stats')
-    @patch('napps.kytos.of_core.v0x04.utils.handle_port_desc')
-    def test_handle_multipart_reply(self, *args):
-        """Test handle multipart reply."""
-        (mock_of_core_v0x04_utils, mock_from_of_flow_stats_v0x04) = args
-
-        flow_msg = MagicMock()
-        flow_msg.multipart_type = MultipartType.OFPMP_FLOW
-        name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
-        content = {"source": self.switch_v0x04.connection,
-                   "message": flow_msg}
-        event = get_kytos_event_mock(name=name, content=content)
-
-        self.napp.handle_multipart_reply(event)
-        mock_from_of_flow_stats_v0x04.assert_called_with(
-            flow_msg, self.switch_v0x04.connection.switch)
-
-        ofpmp_port_desc = MagicMock()
-        ofpmp_port_desc.body = "A"
-        ofpmp_port_desc.multipart_type = MultipartType.OFPMP_PORT_DESC
-        content = {"source": self.switch_v0x04.connection,
-                   "message": ofpmp_port_desc}
-        event = get_kytos_event_mock(name=name, content=content)
-        self.napp.handle_multipart_reply(event)
-        mock_of_core_v0x04_utils.assert_called_with(
-            self.napp.controller, self.switch_v0x04.connection.switch,
-            ofpmp_port_desc.body)
-
-        ofpmp_desc = MagicMock()
-        ofpmp_desc.body = "A"
-        ofpmp_desc.multipart_type = MultipartType.OFPMP_DESC
-        content = {"source": self.switch_v0x04.connection,
-                   "message": ofpmp_desc}
-        event = get_kytos_event_mock(name=name, content=content)
-        switch_update = self.switch_v0x04.connection.switch.update_description
-        self.napp.handle_multipart_reply(event)
-        self.assertEqual(switch_update.call_count, 1)
-
     @patch('kytos.core.buffers.KytosEventBuffer.put')
     @patch('napps.kytos.of_core.v0x04.utils.send_set_config')
     @patch('napps.kytos.of_core.v0x01.utils.send_set_config')
@@ -261,54 +539,6 @@ class TestMain(TestCase):
 
         mock_buffers_put.assert_called()
 
-    @patch('time.sleep', return_value=None)
-    @patch('napps.kytos.of_core.main.log')
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
-    @patch('napps.kytos.of_core.main.Main._update_switch_flows')
-    @patch('napps.kytos.of_core.v0x04.flow.Flow.from_of_flow_stats')
-    @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
-    def test_handle_multipart_flow_stats(self, *args):
-        """Test handle multipart flow stats."""
-        (mock_is_multipart_reply_ours, mock_from_of_flow_stats_v0x04,
-         mock_update_switch_flows, mock_buffer_put, mock_log,
-         mock_time_sleep) = args
-        mock_is_multipart_reply_ours.return_value = True
-        mock_from_of_flow_stats_v0x04.return_value = "ABC"
-
-        flow_msg = MagicMock()
-        flow_msg.body = "A"
-        flow_msg.flags.value = 2
-        flow_msg.body_type = StatsType.OFPST_FLOW
-        flow_msg.header.xid = 0xABC
-
-        dpid = self.switch_v0x04.id
-        self.napp._multipart_replies_xids_lock = {dpid: MagicMock()}
-        self.napp._multipart_replies_xids = {dpid: {0xABC: 1}}
-
-        self.napp._handle_multipart_flow_stats(flow_msg, self.switch_v0x04)
-
-        mock_is_multipart_reply_ours.assert_called_with(flow_msg,
-                                                        self.switch_v0x04,
-                                                        'flows')
-        mock_from_of_flow_stats_v0x04.assert_called_with(flow_msg.body,
-                                                         self.switch_v0x04)
-        mock_update_switch_flows.assert_called_with(self.switch_v0x04)
-        self.assertEqual(self.napp._multipart_replies_xids[dpid][0xABC], 0)
-
-        # Test when some parts of the multipart reply are missing
-        self.napp._multipart_replies_xids = {dpid: {0xABC: 2}}
-        self.napp._handle_multipart_flow_stats(flow_msg, self.switch_v0x04)
-        mock_time_sleep.assert_called()
-
-        # Test when update_switch_flows fails
-        self.napp._multipart_replies_xids = {dpid: {0xABC: 1}}
-        mock_update_switch_flows.side_effect = KeyError()
-        mock_buffer_put.call_count = 0
-        mock_log.error.call_count = 0
-        self.napp._handle_multipart_flow_stats(flow_msg, self.switch_v0x04)
-        self.assertEqual(mock_log.error.call_count, 1)
-        mock_buffer_put.assert_not_called()
-
     def test_update_switch_flows(self):
         """Test update_switch_flows."""
         dpid = '00:00:00:00:00:00:00:01'
@@ -337,87 +567,6 @@ class TestMain(TestCase):
         response = self.napp._is_multipart_reply_ours(
             mock_reply, mock_switch, 'flows')
         self.assertEqual(response, False)
-
-    @patch('napps.kytos.of_core.main.Main.process_multipart_messages')
-    @patch('napps.kytos.of_core.main.of_slicer')
-    @patch('napps.kytos.of_core.main.Main._negotiate')
-    @patch('napps.kytos.of_core.main.Main.emit_message_in')
-    def test_handle_raw_in(self, *args):
-        """Test handle_raw_in."""
-        (mock_emit_message_in, mock_negotiate, mock_of_slicer,
-         mock_process_multipart_messages) = args
-
-        mock_packets = MagicMock()
-        mock_data = MagicMock()
-        mock_connection = MagicMock()
-        mock_connection.is_new.side_effect = [True, False, True, False]
-        mock_connection.is_during_setup.return_value = False
-        mock_of_slicer.return_value = [[mock_packets, mock_packets], b'']
-        name = 'kytos/core.openflow.raw.in'
-        content = {'source': mock_connection, 'new_data': mock_data}
-        mock_event = get_kytos_event_mock(name=name, content=content)
-
-        self.napp.handle_raw_in(mock_event)
-        mock_negotiate.assert_called()
-        mock_emit_message_in.assert_called()
-
-        # Test Fail
-        mock_negotiate.side_effect = NegotiationException('Foo')
-        self.napp.handle_raw_in(mock_event)
-        self.assertEqual(mock_connection.close.call_count, 1)
-
-        mock_connection.close.call_count = 0
-        mock_connection.protocol.unpack.side_effect = AttributeError()
-        self.napp.handle_raw_in(mock_event)
-        self.assertEqual(mock_connection.close.call_count, 1)
-
-        # test message type OFPT_MULTIPART_REPLY
-        mock_message = MagicMock()
-        mock_message.header.xid = 0xABC
-        mock_message.header.message_type.name = 'ofpt_multipart_reply'
-        mock_connection.protocol.unpack.side_effect = [mock_message]*2
-        mock_connection.is_new.side_effect = [False, False]
-        mock_process_multipart_messages.call_count = 0
-        messages = {0xABC: [mock_message]*2}
-        self.napp.handle_raw_in(mock_event)
-        mock_process_multipart_messages.assert_called_with(mock_connection,
-                                                           messages)
-
-    @patch('napps.kytos.of_core.main.Main.emit_message_in')
-    def test_process_multipart_messages(self, mock_emit_message_in):
-        """Test process_multipart_messages."""
-        dpid = self.switch_v0x04.id
-        mock_connection = MagicMock()
-        mock_connection.switch = self.switch_v0x04
-        self.napp._multipart_replies_xids_lock = {dpid: MagicMock()}
-        self.napp._multipart_replies_xids = {dpid: {0xABC: 0}}
-        mock_message = MagicMock()
-        messages = {0xABC: [mock_message]*2}
-        mock_emit_message_in.call_count = 0
-        self.napp.process_multipart_messages(mock_connection, messages)
-        self.assertEqual(mock_emit_message_in.call_count, 2)
-        self.assertEqual(self.napp._multipart_replies_xids[dpid][0xABC], 2)
-
-    @patch('napps.kytos.of_core.main.Main._new_port_stats')
-    @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
-    def test_handle_multipart_port_stats(self, *args):
-        """Test handle multipart flow stats."""
-        (mock_is_multipart_reply_ours,
-         mock_new_port_stats) = args
-        mock_is_multipart_reply_ours.return_value = True
-
-        port_stats_msg = MagicMock()
-        port_stats_msg.body = "A"
-        port_stats_msg.flags.value = 2
-        port_stats_msg.multipart_type = MultipartType.OFPMP_PORT_STATS
-
-        self.napp._handle_multipart_port_stats(port_stats_msg,
-                                               self.switch_v0x04)
-
-        mock_is_multipart_reply_ours.assert_called_with(port_stats_msg,
-                                                        self.switch_v0x04,
-                                                        'ports')
-        mock_new_port_stats.assert_called_with(self.switch_v0x04)
 
     @patch('napps.kytos.of_core.main.Main.update_port_status')
     @patch('napps.kytos.of_core.main.Main.update_links')
@@ -468,76 +617,6 @@ class TestMain(TestCase):
         mock_echo_reply.assert_called_with(xid=mock_echo_request.header.xid,
                                            data=mock_echo_request.data)
         mock_emit_message_out.assert_called_with(mock_event.source, "A")
-
-    @patch('napps.kytos.of_core.main.Main.send_features_request')
-    @patch('napps.kytos.of_core.v0x04.utils.say_hello')
-    @patch('napps.kytos.of_core.main._get_version_from_bitmask')
-    @patch('napps.kytos.of_core.main._get_version_from_header')
-    def test_negotiate(self, *args):
-        """Test negotiate."""
-        (mock_version_header, mock_version_bitmask, mock_say_hello,
-         mock_features_request) = args
-        mock_version_header.return_value = 4
-        mock_version_bitmask.side_effect = [4, None]
-        mock_connection = MagicMock()
-        mock_message = MagicMock()
-        type(mock_message).versions = PropertyMock(side_effect=[4, 4, 4,
-                                                                False])
-
-        self.napp._negotiate(mock_connection, mock_message)
-        mock_version_bitmask.assert_called_with(mock_message.versions)
-        mock_say_hello.assert_called_with(self.napp.controller,
-                                          mock_connection)
-        mock_features_request.assert_called_with(mock_connection)
-
-        self.napp._negotiate(mock_connection, mock_message)
-        mock_say_hello.assert_called_with(self.napp.controller,
-                                          mock_connection)
-        mock_features_request.assert_called_with(mock_connection)
-
-        # Test Fail
-        with self.assertRaises(NegotiationException):
-            type(mock_message).versions = PropertyMock(return_value=[4])
-            self.napp._negotiate(mock_connection, mock_message)
-
-    @patch('pyof.utils.v0x04.asynchronous.error_msg.ErrorMsg')
-    @patch('napps.kytos.of_core.main.Main.emit_message_out')
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
-    def tests_fail_negotiation(self, *args):
-        """Test fail_negotiation."""
-        (mock_event_buffer, mock_emit_message_out,
-         mock_error_msg) = args
-        mock_connection = MagicMock()
-        mock_message = MagicMock()
-        mock_connection.id = "A"
-        mock_message.side_effect = 4
-        self.napp.fail_negotiation(mock_connection, mock_message)
-        mock_event_buffer.assert_called()
-        mock_emit_message_out.assert_called_with(mock_connection,
-                                                 mock_error_msg.return_value)
-
-    @patch('napps.kytos.of_core.settings.SEND_FEATURES_REQUEST_ON_ECHO')
-    @patch('napps.kytos.of_core.main.Main.send_features_request')
-    def test_handle_queued_openflow_echo_reply(self, *args):
-        """Test handle queued OpenFlow echo reply messages."""
-        (mock_send_features_request, mock_settings) = args
-        mock_settings.return_value = True
-        mock_event = MagicMock()
-        self.napp.handle_queued_openflow_echo_reply(mock_event)
-        mock_send_features_request.assert_called_with(mock_event.destination)
-
-    @patch('pyof.utils.v0x04.controller2switch.'
-           'features_request.FeaturesRequest')
-    @patch('napps.kytos.of_core.main.Main.emit_message_out')
-    def test_send_features_request(self, *args):
-        """Test send send_features_request."""
-        (mock_emit_message_out, mock_features_request) = args
-        mock_destination = MagicMock()
-        mock_destination.protocol.version = 4
-        mock_features_request.return_value = "A"
-        self.napp.send_features_request(mock_destination)
-        mock_features_request.assert_called()
-        mock_emit_message_out.assert_called_with(mock_destination, "A")
 
     def test_handle_features_request_sent(self):
         """Test tests_handle_features_request_sent."""
