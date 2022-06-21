@@ -26,6 +26,7 @@ from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
 
+# pylint: disable=invalid-name
 log = logging.getLogger("kytos.napps.kytos/of_core")
 
 
