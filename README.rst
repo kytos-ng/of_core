@@ -124,6 +124,23 @@ Content:
     'interfaces': [<interface>] # Instance of Interface class
    }
 
+kytos/of_core.flow_stats.received
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that OpenFlow multipart OFPMP_FLOW message has been received.
+
+This event includes the switch with all flows, and also the assembled flows 
+that have been just received.
+
+Content:
+
+.. code-block:: python
+
+   {
+    'switch': <switch>,
+    'replies_flows': <list of Flow04>
+   }
+
 kytos/of_core.reachable.mac
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
