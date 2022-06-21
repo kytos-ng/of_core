@@ -31,7 +31,7 @@ async def test_aemit_message_out(controller, switch_one):
     mock_message.header.message_type.value = Type.OFPT_FLOW_MOD.value
     await aemit_message_out(controller, switch_one.connection, mock_message)
     assert controller.buffers.msg_out.aput.call_count == 1
-    kytos_event = controller.buffers.msg_in.aput.call_args[0][0]
+    kytos_event = controller.buffers.msg_out.aput.call_args[0][0]
     assert kytos_event.priority == of_msg_prio(Type.OFPT_FLOW_MOD.value)
 
 
