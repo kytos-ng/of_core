@@ -8,6 +8,7 @@ from pyof.v0x01.common.header import Type as OFPTYPE
 
 from kytos.core import KytosEvent
 from napps.kytos.of_core import settings
+from napps.kytos.of_core.msg_prios import of_msg_prio
 
 
 def of_slicer(remaining_data):
@@ -52,8 +53,10 @@ async def _aemit_message(controller, connection, message, direction):
 
     name = message.header.message_type.name.lower()
     hex_version = 'v0x%0.2x' % (message.header.version + 0)
+    priority = of_msg_prio(message.header.message_type.value)
     of_event = KytosEvent(
         name=f"kytos/of_core.{hex_version}.messages.{direction}.{name}",
+        priority=priority,
         content={'message': message,
                  address_type: connection})
     await message_buffer.aput(of_event)
@@ -72,8 +75,10 @@ def _emit_message(controller, connection, message, direction):
 
     name = message.header.message_type.name.lower()
     hex_version = 'v0x%0.2x' % (message.header.version + 0)
+    priority = of_msg_prio(message.header.message_type.value)
     of_event = KytosEvent(
         name=f"kytos/of_core.{hex_version}.messages.{direction}.{name}",
+        priority=priority,
         content={'message': message,
                  address_type: connection})
     message_buffer.put(of_event)
