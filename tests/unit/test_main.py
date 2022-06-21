@@ -156,10 +156,12 @@ class TestNApp:
         await napp.on_queued_openflow_echo_reply(mock_event)
         mock_send_features_request.assert_called_with(mock_event.destination)
 
+    @patch('napps.kytos.of_core.main.Main._handle_multipart_reply')
     @patch('napps.kytos.of_core.main.Main.aemit_message_in')
     async def test_process_multipart_messages(
         self,
         mock_aemit_message_in,
+        mock_handle_multipart_reply,
         switch_one,
         napp
     ):
@@ -170,39 +172,30 @@ class TestNApp:
         napp._multipart_replies_xids = {dpid: {0xABC: 0}}
         mock_message = MagicMock()
         messages = {0xABC: [mock_message]*2}
-        mock_aemit_message_in.call_count = 0
         await napp.process_multipart_messages(mock_connection, messages)
-        assert mock_aemit_message_in.call_count == 2
-        assert napp._multipart_replies_xids[dpid][0xABC] == 2
+        assert mock_aemit_message_in.call_count == len(messages[0xABC])
+        assert mock_handle_multipart_reply.call_count == len(messages[0xABC])
 
     @patch('napps.kytos.of_core.main.Main._handle_multipart_flow_stats')
     @patch('napps.kytos.of_core.v0x04.utils.handle_port_desc')
-    async def test_on_multipart_reply(
+    async def test_handle_multipart_reply(
         self,
         mock_of_core_v0x04_utils,
         mock_from_of_flow_stats_v0x04,
         switch_one,
         napp,
     ):
-        """Test on multipart reply."""
+        """Test handle multipart reply."""
         flow_msg = MagicMock()
         flow_msg.multipart_type = MultipartType.OFPMP_FLOW
-        name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
-        content = {"source": switch_one.connection,
-                   "message": flow_msg}
-        event = get_kytos_event_mock(name=name, content=content)
-
-        await napp.on_multipart_reply(event)
+        await napp._handle_multipart_reply(flow_msg, switch_one)
         mock_from_of_flow_stats_v0x04.assert_called_with(
             flow_msg, switch_one.connection.switch)
 
         ofpmp_port_desc = MagicMock()
         ofpmp_port_desc.body = "A"
         ofpmp_port_desc.multipart_type = MultipartType.OFPMP_PORT_DESC
-        content = {"source": switch_one.connection,
-                   "message": ofpmp_port_desc}
-        event = get_kytos_event_mock(name=name, content=content)
-        await napp.on_multipart_reply(event)
+        await napp._handle_multipart_reply(ofpmp_port_desc, switch_one)
         mock_of_core_v0x04_utils.assert_called_with(
             napp.controller, switch_one.connection.switch,
             ofpmp_port_desc.body)
@@ -210,15 +203,11 @@ class TestNApp:
         ofpmp_desc = MagicMock()
         ofpmp_desc.body = "A"
         ofpmp_desc.multipart_type = MultipartType.OFPMP_DESC
-        content = {"source": switch_one.connection,
-                   "message": ofpmp_desc}
-        event = get_kytos_event_mock(name=name, content=content)
-        switch_update = switch_one.connection.switch.update_description
-        await napp.on_multipart_reply(event)
-        assert switch_update.call_count == 1
+        await napp._handle_multipart_reply(ofpmp_desc, switch_one)
+        assert switch_one.update_description.call_count == 1
 
     @patch('napps.kytos.of_core.main.log')
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    @patch('kytos.core.buffers.KytosEventBuffer.aput')
     @patch('napps.kytos.of_core.main.Main._update_switch_flows')
     @patch('napps.kytos.of_core.v0x04.flow.Flow.from_of_flow_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
@@ -227,7 +216,7 @@ class TestNApp:
         mock_is_multipart_reply_ours,
         mock_from_of_flow_stats_v0x04,
         mock_update_switch_flows,
-        mock_buffer_put,
+        mock_buffer_aput,
         mock_log,
         switch_one,
         napp
@@ -243,7 +232,8 @@ class TestNApp:
         flow_msg.header.xid = 0xABC
 
         dpid = switch_one.id
-        napp._multipart_replies_xids = {dpid: {0xABC: 1}}
+        xid_flows = 0xABC
+        napp._multipart_replies_xids = {dpid: {'flows': xid_flows}}
 
         await napp._handle_multipart_flow_stats(flow_msg, switch_one)
 
@@ -253,20 +243,19 @@ class TestNApp:
         mock_from_of_flow_stats_v0x04.assert_called_with(flow_msg.body,
                                                          switch_one)
         mock_update_switch_flows.assert_called_with(switch_one)
-        assert napp._multipart_replies_xids[dpid][0xABC] == 0
-
-        # Test when some parts of the multipart reply are missing
-        napp._multipart_replies_xids = {dpid: {0xABC: 2}}
-        await napp._handle_multipart_flow_stats(flow_msg, switch_one)
+        assert mock_buffer_aput.call_count == 1
+        kytos_event = mock_buffer_aput.call_args[0][0]
+        assert kytos_event.name == 'kytos/of_core.flow_stats.received'
+        assert kytos_event.content['switch'] == switch_one
+        assert "replies_flows" in kytos_event.content
 
         # Test when update_switch_flows fails
-        napp._multipart_replies_xids = {dpid: {0xABC: 1}}
         mock_update_switch_flows.side_effect = KeyError()
-        mock_buffer_put.call_count = 0
+        mock_buffer_aput.call_count = 0
         mock_log.error.call_count = 0
         await napp._handle_multipart_flow_stats(flow_msg, switch_one)
         assert mock_log.error.call_count == 1
-        mock_buffer_put.assert_not_called()
+        mock_buffer_aput.assert_not_called()
 
     @patch('napps.kytos.of_core.main.Main._new_port_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
@@ -545,7 +534,7 @@ class TestMain(TestCase):
         mock_switch = get_switch_mock(dpid)
         mock_switch.id = dpid
         self.napp._multipart_replies_flows = {dpid: mock_switch}
-        self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC, 0xABC: 0}}
+        self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC}}
         self.napp._update_switch_flows(mock_switch)
         self.assertEqual(self.napp._multipart_replies_xids, {dpid: {}})
         self.assertEqual(self.napp._multipart_replies_flows, {})

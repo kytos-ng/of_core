@@ -4,9 +4,26 @@ from unittest.mock import MagicMock, patch
 
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
 from napps.kytos.of_core.utils import (GenericHello, _emit_message,
-                                       _unpack_int, emit_message_in,
+                                       _unpack_int, aemit_message_in,
+                                       aemit_message_out, emit_message_in,
                                        emit_message_out, of_slicer)
 from tests.helpers import get_controller_mock
+
+
+@patch('kytos.core.buffers.KytosEventBuffer.aput')
+async def test_aemit_message_in(controller, switch_one):
+    """Test aemit_message_in."""
+    mock_message = MagicMock()
+    await aemit_message_in(controller, switch_one.connection, mock_message)
+    assert controller.buffers.msg_in.aput.call_count == 1
+
+
+@patch('kytos.core.buffers.KytosEventBuffer.aput')
+async def test_aemit_message_out(controller, switch_one):
+    """Test aemit_message_in."""
+    mock_message = MagicMock()
+    await aemit_message_out(controller, switch_one.connection, mock_message)
+    assert controller.buffers.msg_out.aput.call_count == 1
 
 
 class TestUtils(TestCase):

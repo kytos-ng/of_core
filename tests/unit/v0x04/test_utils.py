@@ -11,6 +11,23 @@ from napps.kytos.of_core.v0x04.utils import (handle_features_reply,
 from tests.helpers import get_controller_mock
 
 
+@patch('napps.kytos.of_core.v0x04.utils.aemit_message_out')
+async def test_say_hello(mock_aemit_message_out, controller, switch_one):
+    """Test say_hello."""
+    await say_hello(controller, switch_one)
+    mock_aemit_message_out.assert_called()
+
+
+@patch('kytos.core.buffers.KytosEventBuffer.aput')
+async def test_handle_port_desc(mock_event_buffer, controller, switch_one):
+    """Test Handle Port Desc."""
+    mock_port = MagicMock()
+    await handle_port_desc(controller, switch_one, [mock_port])
+    assert switch_one.update_or_create_interface.call_count == 1
+    mock_event_buffer.assert_called()
+    assert controller.buffers.app.aput.call_count == 3
+
+
 class TestUtils(TestCase):
     """Test utils."""
 
@@ -41,26 +58,6 @@ class TestUtils(TestCase):
         self.assertEqual(self.mock_switch, response)
         self.assertEqual(self.mock_switch.update_features.call_count, 1)
 
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
-    def test_handle_port_desc(self, mock_event_buffer):
-        """Test Handle Port Desc."""
-        mock_port = MagicMock()
-        self.mock_switch.get_interface_by_port_no.side_effect = [MagicMock(),
-                                                                 False]
-        handle_port_desc(self.mock_controller, self.mock_switch, [mock_port])
-        call_count = self.mock_switch.update_or_create_interface.call_count
-        self.assertEqual(call_count, 1)
-        mock_event_buffer.assert_called()
-        self.assertEqual(self.mock_controller.buffers.app.put.call_count, 3)
-
-        self.mock_switch.update_or_create_interface.call_count = 0
-        self.mock_controller.buffers.app.put.call_count = 0
-        handle_port_desc(self.mock_controller, self.mock_switch, [mock_port])
-        call_count = self.mock_switch.update_or_create_interface.call_count
-        self.assertEqual(call_count, 1)
-        mock_event_buffer.assert_called()
-        self.assertEqual(self.mock_controller.buffers.app.put.call_count, 3)
-
     @patch('napps.kytos.of_core.v0x04.utils.emit_message_out')
     def test_send_echo(self, mock_emit_message_out):
         """Test send_echo."""
@@ -71,10 +68,4 @@ class TestUtils(TestCase):
     def test_set_config(self, mock_emit_message_out):
         """Test set_config."""
         send_set_config(self.mock_controller, self.mock_switch)
-        mock_emit_message_out.assert_called()
-
-    @patch('napps.kytos.of_core.v0x04.utils.emit_message_out')
-    def test_say_hello(self, mock_emit_message_out):
-        """Test say_hello."""
-        say_hello(self.mock_controller, self.mock_switch)
         mock_emit_message_out.assert_called()
