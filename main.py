@@ -1,6 +1,7 @@
 """NApp responsible for the main OpenFlow basic operations."""
 
 import asyncio
+import logging
 import time
 from collections import defaultdict
 
@@ -35,7 +36,7 @@ class Main(KytosNApp):
     # cycles before cleaning up pending requests and getting a fresh start
     _multipart_replies_xids = {}
     _multipart_replies_flows = defaultdict(list)
-    _multipart_replies_ports = {}
+    _multipart_replies_ports = defaultdict(list)
 
     def setup(self):
         """App initialization (used instead of ``__init__``).
@@ -111,7 +112,6 @@ class Main(KytosNApp):
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
                                                                switch)
             self._multipart_replies_xids[switch.id] = {'flows': xid_flows,
-                                                       int(xid_flows): 0,
                                                        'ports': xid_ports}
 
     @listen_to('kytos/of_core.v0x01.messages.in.ofpt_stats_reply')
@@ -217,15 +217,14 @@ class Main(KytosNApp):
             flows = [Flow04.from_of_flow_stats(of_flow_stats, switch)
                      for of_flow_stats in reply.body]
             self._multipart_replies_flows[switch.id].extend(flows)
-
             xid = int(reply.header.xid)
-            if xid in self._multipart_replies_xids.get(switch.id, {}):
-                self._multipart_replies_xids[switch.id][xid] -= 1
 
             if reply.flags.value % 2 == 0:  # Last bit means more replies
                 try:
-                    # pylint: disable=fixme
-                    # TODO issue 37 in an upcoming PR
+                    replies_flows = [
+                        flow for flow
+                        in self._multipart_replies_flows[switch.id]
+                    ]
                     self._update_switch_flows(switch)
                 except KeyError:
                     log.error("Skipped flow stats reply due to error when"
@@ -233,7 +232,7 @@ class Main(KytosNApp):
                     return
                 event_raw = KytosEvent(
                     name='kytos/of_core.flow_stats.received',
-                    content={'switch': switch})
+                    content={'switch': switch, 'replies_flows': replies_flows})
                 await self.controller.buffers.app.aput(event_raw)
                 return True
 
@@ -241,21 +240,15 @@ class Main(KytosNApp):
         """Emit an event about new port stats."""
         if self._is_multipart_reply_ours(reply, switch, 'ports'):
             port_stats = [of_port_stats for of_port_stats in reply.body]
-            all_port_stats = self._multipart_replies_ports.setdefault(
-                switch.id, []
-            )
-            all_port_stats.extend(port_stats)
+            self._multipart_replies_ports[switch.id].extend(port_stats)
             if reply.flags.value % 2 == 0:
                 await self._new_port_stats(switch)
 
     def _update_switch_flows(self, switch):
         """Update controllers' switch flow list and clean resources."""
         switch.flows = self._multipart_replies_flows[switch.id]
-        xid_flows = int(self._multipart_replies_xids[switch.id]['flows'])
         del self._multipart_replies_flows[switch.id]
         del self._multipart_replies_xids[switch.id]['flows']
-        if xid_flows in self._multipart_replies_xids[switch.id]:
-            del self._multipart_replies_xids[switch.id][xid_flows]
 
     async def _new_port_stats(self, switch):
         """Send an event with the new port stats and clean resources."""
@@ -327,11 +320,11 @@ class Main(KytosNApp):
                     connection.close()
                     return
 
-                log.debug('Connection %s: IN OFP, ver: %s, type: %s, xid: %s',
-                          connection.id,
-                          message.header.version,
-                          message.header.message_type,
-                          message.header.xid)
+                if logging.DEBUG >= log.getEffectiveLevel():
+                    fmt = 'Connection %s: IN OFP, ver: %s, type: %s, xid: %s'
+                    log.debug(fmt, connection.id, message.header.version,
+                              message.header.message_type,
+                              message.header.xid)
 
                 ofp_msg_type_str = message.header.message_type.name.lower()
                 waiting_features_reply = (
@@ -376,9 +369,7 @@ class Main(KytosNApp):
     async def process_multipart_messages(self, connection, messages):
         """Update the multipart reply counter and emit KytosEvent."""
         switch = connection.switch
-        for xid, msgs in messages.items():
-            if xid in self._multipart_replies_xids.get(switch.id, {}):
-                self._multipart_replies_xids[switch.id][xid] += len(msgs)
+        for msgs in messages.values():
             for message in msgs:
                 await self._handle_multipart_reply(message, switch)
                 await self.aemit_message_in(connection, message)

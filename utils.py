@@ -39,6 +39,26 @@ def _unpack_int(packet, offset=0, size=None):
     return int.from_bytes(packet[offset:offset + size], byteorder='big')
 
 
+async def _aemit_message(controller, connection, message, direction):
+    """Async emit a KytosEvent for every incoming or outgoing message."""
+    if direction == 'in':
+        address_type = 'source'
+        message_buffer = controller.buffers.msg_in
+    elif direction == 'out':
+        address_type = 'destination'
+        message_buffer = controller.buffers.msg_out
+    else:
+        raise Exception("direction must be 'in' or 'out'")
+
+    name = message.header.message_type.name.lower()
+    hex_version = 'v0x%0.2x' % (message.header.version + 0)
+    of_event = KytosEvent(
+        name=f"kytos/of_core.{hex_version}.messages.{direction}.{name}",
+        content={'message': message,
+                 address_type: connection})
+    await message_buffer.aput(of_event)
+
+
 def _emit_message(controller, connection, message, direction):
     """Emit a KytosEvent for every incoming or outgoing message."""
     if direction == 'in':
@@ -67,6 +87,16 @@ def emit_message_in(controller, connection, message):
 def emit_message_out(controller, connection, message):
     """Emit a KytosEvent for every outgoing message."""
     _emit_message(controller, connection, message, 'out')
+
+
+async def aemit_message_in(controller, connection, message):
+    """Async emit a KytosEvent for every incoming message."""
+    await _aemit_message(controller, connection, message, 'in')
+
+
+async def aemit_message_out(controller, connection, message):
+    """Async emit a KytosEvent for every outgoing message."""
+    await _aemit_message(controller, connection, message, 'out')
 
 
 class GenericHello:

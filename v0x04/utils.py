@@ -10,7 +10,7 @@ from pyof.v0x04.symmetric.echo_request import EchoRequest
 from pyof.v0x04.symmetric.hello import Hello
 
 from kytos.core.events import KytosEvent
-from napps.kytos.of_core.utils import emit_message_out
+from napps.kytos.of_core.utils import aemit_message_out, emit_message_out
 
 
 def update_flow_list(controller, switch):
@@ -97,7 +97,7 @@ def handle_features_reply(controller, event):
     return switch
 
 
-def handle_port_desc(controller, switch, port_list):
+async def handle_port_desc(controller, switch, port_list):
     """Update interfaces on switch based on port_list information."""
     interfaces = []
     for port in port_list:
@@ -130,13 +130,13 @@ def handle_port_desc(controller, switch, port_list):
                                         'state': port.state.value
                                         }
                                     })
-        controller.buffers.app.put(port_event)
-        controller.buffers.app.put(interface_event)
+        await controller.buffers.app.aput(port_event)
+        await controller.buffers.app.aput(interface_event)
     if interfaces:
         event_name = 'kytos/of_core.switch.interfaces.created'
         interface_event = KytosEvent(name=event_name,
                                      content={'interfaces': interfaces})
-        controller.buffers.app.put(interface_event)
+        await controller.buffers.app.aput(interface_event)
 
 
 def send_echo(controller, switch):
@@ -156,10 +156,10 @@ def send_set_config(controller, switch):
     emit_message_out(controller, switch.connection, set_config)
 
 
-def say_hello(controller, connection):
+async def say_hello(controller, connection):
     """Send back a Hello packet with the same version as the switch."""
     hello = Hello()
-    emit_message_out(controller, connection, hello)
+    await aemit_message_out(controller, connection, hello)
 
 
 def mask_to_bytes(mask, size):
