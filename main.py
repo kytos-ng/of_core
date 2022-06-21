@@ -12,7 +12,7 @@ from pyof.v0x01.common.header import Type
 from pyof.v0x01.controller2switch.common import StatsType
 from pyof.v0x04.controller2switch.common import MultipartType
 
-from kytos.core import KytosEvent, KytosNApp, log
+from kytos.core import KytosEvent, KytosNApp
 from kytos.core.connection import ConnectionState
 from kytos.core.helpers import alisten_to, listen_to, run_on_thread
 from kytos.core.interface import Interface
@@ -25,6 +25,8 @@ from napps.kytos.of_core.v0x01 import utils as of_core_v0x01_utils
 from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
+
+log = logging.getLogger("kytos.napps.kytos/of_core")
 
 
 class Main(KytosNApp):
@@ -320,11 +322,11 @@ class Main(KytosNApp):
                     connection.close()
                     return
 
-                if logging.DEBUG >= log.getEffectiveLevel():
-                    fmt = 'Connection %s: IN OFP, ver: %s, type: %s, xid: %s'
-                    log.debug(fmt, connection.id, message.header.version,
-                              message.header.message_type,
-                              message.header.xid)
+                log.debug('Connection %s: IN OFP, ver: %s, type: %s, xid: %s',
+                          connection.id,
+                          message.header.version,
+                          message.header.message_type,
+                          message.header.xid)
 
                 ofp_msg_type_str = message.header.message_type.name.lower()
                 waiting_features_reply = (
