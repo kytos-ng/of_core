@@ -2,7 +2,10 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from pyof.v0x04.common.header import Type
+
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
+from napps.kytos.of_core.msg_prios import of_msg_prio
 from napps.kytos.of_core.utils import (GenericHello, _emit_message,
                                        _unpack_int, aemit_message_in,
                                        aemit_message_out, emit_message_in,
@@ -14,16 +17,22 @@ from tests.helpers import get_controller_mock
 async def test_aemit_message_in(controller, switch_one):
     """Test aemit_message_in."""
     mock_message = MagicMock()
+    mock_message.header.message_type.value = Type.OFPT_FLOW_MOD.value
     await aemit_message_in(controller, switch_one.connection, mock_message)
     assert controller.buffers.msg_in.aput.call_count == 1
+    kytos_event = controller.buffers.msg_in.aput.call_args[0][0]
+    assert kytos_event.priority == of_msg_prio(Type.OFPT_FLOW_MOD.value)
 
 
 @patch('kytos.core.buffers.KytosEventBuffer.aput')
 async def test_aemit_message_out(controller, switch_one):
     """Test aemit_message_in."""
     mock_message = MagicMock()
+    mock_message.header.message_type.value = Type.OFPT_FLOW_MOD.value
     await aemit_message_out(controller, switch_one.connection, mock_message)
     assert controller.buffers.msg_out.aput.call_count == 1
+    kytos_event = controller.buffers.msg_in.aput.call_args[0][0]
+    assert kytos_event.priority == of_msg_prio(Type.OFPT_FLOW_MOD.value)
 
 
 class TestUtils(TestCase):
