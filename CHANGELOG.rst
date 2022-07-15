@@ -15,6 +15,11 @@ Added
 Changed
 =======
 - Changed Match OF10 ``as_dict`` to only included explicit set values
+- of_core handles and assembles OpenFlow 1.3 messages with ``async`` methods
+- on_multipart_reply is now handled with an ``async`` method in line
+- Updated ``kytos/of_core.flow_stats.received`` to also include the replied flows
+- KytosEvent put in ``msg_in`` and ``msg_out`` now have priority based on their control plane importance to avoid starvation
+- Replaced kytos.core log instance with a new one for now
 
 Deprecated
 ==========

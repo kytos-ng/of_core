@@ -20,6 +20,8 @@ backcall==0.1.0
     # via
     #   ipython
     #   kytos
+black==22.3.0
+    # via -r requirements/dev.in
 blinker==1.4
     # via
     #   elastic-apm
@@ -28,8 +30,9 @@ certifi==2021.10.8
     # via
     #   elastic-apm
     #   kytos
-click==7.1.1
+click==8.1.3
     # via
+    #   black
     #   flask
     #   kytos
     #   pip-tools
@@ -97,6 +100,8 @@ markupsafe==1.1.1
     #   kytos
 mccabe==0.6.1
     # via pylint
+mypy-extensions==0.4.3
+    # via black
 packaging==20.9
     # via
     #   pytest
@@ -105,6 +110,8 @@ parso==0.6.2
     # via
     #   jedi
     #   kytos
+pathspec==0.9.0
+    # via black
 pathtools==0.1.2
     # via
     #   kytos
@@ -119,6 +126,8 @@ pickleshare==0.7.5
     #   kytos
 pip-tools==4.5.1
     # via kytos-of-core
+platformdirs==2.5.2
+    # via black
 pluggy==0.13.1
     # via
     #   pytest
@@ -154,7 +163,10 @@ pyparsing==3.0.7
 pytest==7.0.0
     # via
     #   kytos-of-core
+    #   pytest-asyncio
     #   pytest-cov
+pytest-asyncio==0.18.3
+    # via -r requirements/dev.in
 pytest-cov==3.0.0
     # via kytos-of-core
 python-daemon==2.2.4
@@ -183,6 +195,7 @@ toml==0.10.2
     # via tox
 tomli==1.2.3
     # via
+    #   black
     #   coverage
     #   pytest
 tox==3.14.6
@@ -193,6 +206,7 @@ traitlets==4.3.3
     #   kytos
 typing-extensions==4.0.1
     # via
+    #   black
     #   kytos
     #   pydantic
 urllib3==1.26.7
