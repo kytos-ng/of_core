@@ -339,23 +339,25 @@ class TestMain(TestCase):
         self.addCleanup(patch.stopall)
         self.napp = Main(get_controller_mock())
 
-    @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.v0x01.utils.send_echo')
     @patch('napps.kytos.of_core.v0x04.utils.send_echo')
     def test_execute(self, *args):
         """Test execute."""
-        (mock_of_core_v0x04_utils, mock_of_core_v0x01_utils, _) = args
+        (mock_of_core_v0x04_utils, mock_of_core_v0x01_utils) = args
+        self.napp.request_flow_list = MagicMock()
         self.switch_v0x01.is_connected.return_value = True
         self.switch_v0x04.is_connected.return_value = True
         self.napp.controller.switches = {"00:00:00:00:00:00:00:01":
                                          self.switch_v0x01}
         self.napp.execute()
         mock_of_core_v0x01_utils.assert_called()
+        assert self.napp.request_flow_list.call_count == 1
 
         self.napp.controller.switches = {"00:00:00:00:00:00:00:01":
                                          self.switch_v0x04}
         self.napp.execute()
         mock_of_core_v0x04_utils.assert_called()
+        assert self.napp.request_flow_list.call_count == 2
 
     @patch('napps.kytos.of_core.main.settings')
     def test_check_overlapping_multipart_request(self, mock_settings):

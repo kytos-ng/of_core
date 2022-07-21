@@ -64,12 +64,17 @@ class Main(KytosNApp):
         """
         for switch in self.controller.switches.values():
             if switch.is_connected():
-                self._request_flow_list(switch)
+                self.request_flow_list(switch)
                 if settings.SEND_ECHO_REQUESTS:
                     version_utils = \
                         self.of_core_version_utils[switch.
                                                    connection.protocol.version]
                     version_utils.send_echo(self.controller, switch)
+
+    @run_on_thread
+    def request_flow_list(self, switch):
+        """Send flow stats request to a connected switch."""
+        self._request_flow_list(switch)
 
     def _check_overlapping_multipart_request(self, switch):
         """Check overlapping multipart stats request (OF 1.3 only)."""
@@ -98,7 +103,6 @@ class Main(KytosNApp):
         self.switch_req_stats_delay['last'] = next_delay
         return next_delay
 
-    @run_on_thread
     def _request_flow_list(self, switch):
         """Send flow stats request to a connected switch."""
         time.sleep(self._get_switch_req_stats_delay(switch))
