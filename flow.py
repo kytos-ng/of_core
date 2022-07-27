@@ -24,9 +24,18 @@ class FlowFactory(ABC):  # pylint: disable=too-few-public-methods
         return flow_class.from_of_flow_stats(of_flow_stats, switch)
 
     @staticmethod
-    def get_class(switch):
-        """Return the Flow class for the switch OF version."""
-        of_version = switch.connection.protocol.version
+    def get_class(switch, default=None):
+        """Return the Flow class for the switch OF version.
+
+        It can fallback to a default class if the switch doesn't
+        have a connection yet.
+        """
+        of_version = None
+        if switch.connection and switch.connection.protocol:
+            of_version = switch.connection.protocol.version
+        if not of_version and default:
+            return default
+
         if of_version == 0x01:
             return v0x01.flow.Flow
         if of_version == 0x04:
@@ -112,8 +121,11 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
             'priority': self.priority,
             'cookie': self.cookie,
         }
-        version = self.switch.connection.protocol.version
-        if version == 0x01:
+        if (
+            self.switch.connection and
+            self.switch.connection.protocol and
+            self.switch.connection.protocol.version == 0x01
+        ):
             flow_str = json.dumps(flow_match_fields,
                                   cls=v0x01.utils.JSONEncoderOF10,
                                   sort_keys=True)
@@ -185,8 +197,11 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
             string: Flow JSON string representation.
 
         """
-        version = self.switch.connection.protocol.version
-        if version == 0x01:
+        if (
+            self.switch.connection and
+            self.switch.connection.protocol and
+            self.switch.connection.protocol.version == 0x01
+        ):
             return json.dumps(self.as_dict(include_id),
                               cls=v0x01.utils.JSONEncoderOF10,
                               sort_keys=sort_keys)

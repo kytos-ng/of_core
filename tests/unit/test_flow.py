@@ -60,7 +60,7 @@ class TestFlowFactory(TestCase):
         from napps.kytos.of_core.flow import FlowFactory
         self.addCleanup(patch.stopall)
 
-        self.napp = FlowFactory()
+        self.factory = FlowFactory()
 
     @patch('napps.kytos.of_core.flow.v0x01')
     @patch('napps.kytos.of_core.flow.v0x04')
@@ -69,11 +69,18 @@ class TestFlowFactory(TestCase):
         (mock_flow_v0x04, mock_flow_v0x01) = args
         mock_stats = MagicMock()
 
-        self.napp.from_of_flow_stats(mock_stats, self.switch_v0x01)
+        self.factory.from_of_flow_stats(mock_stats, self.switch_v0x01)
         mock_flow_v0x01.flow.Flow.from_of_flow_stats.assert_called()
 
-        self.napp.from_of_flow_stats(mock_stats, self.switch_v0x04)
+        self.factory.from_of_flow_stats(mock_stats, self.switch_v0x04)
         mock_flow_v0x04.flow.Flow.from_of_flow_stats.assert_called()
+
+    def test_get_class(self) -> None:
+        """Test get_class."""
+        assert self.factory.get_class(self.switch_v0x01) == Flow01
+        assert self.factory.get_class(self.switch_v0x04) == Flow04
+        switch = MagicMock(connection=None)
+        assert self.factory.get_class(switch, Flow04) == Flow04
 
 
 class TestFlow(TestCase):
