@@ -23,7 +23,7 @@ operations. The messages covered are:
 -  handle all input messages.
 
 Besides the operations related to the messages above and OpenFlow handshake,
-this NApp emits basic OpenFlow status events.
+this NApp emits basic OpenFlow status events. This NApp also standardizes `which priority <https://github.com/kytos-ng/of_core/blob/master/msg_prios.py#L6>`_ value should be set when putting OpenFlow event messages in ``msg_in`` and ``msg_out``.
 
 Installing
 ==========
