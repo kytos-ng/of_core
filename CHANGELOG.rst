@@ -8,6 +8,27 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Added
 =====
+
+Changed
+=======
+
+Deprecated
+==========
+
+Removed
+=======
+
+Fixed
+=====
+
+Security
+========
+
+[2022.2.0] - 2022-08-05
+***********************
+
+Added
+=====
 - Added new KytosEvent ``kytos/of_core.switch.interfaces.created`` meant for bulk updates or insertions.
 - Added ``match_id`` attribute on ``Flow``  as a unique match identifier for efficient overlapping matches updates, minimizing extra DB lookups that would be needed otherwise.
 - Added msg_prios module to define OpenFlow message priorities used in the core queues and covered with unit tests
@@ -19,21 +40,11 @@ Changed
 - on_multipart_reply is now handled with an ``async`` method in line
 - Updated ``kytos/of_core.flow_stats.received`` to also include the replied flows
 - KytosEvent put in ``msg_in`` and ``msg_out`` now have priority based on their control plane importance to avoid starvation
-- Replaced kytos.core log instance with a new one for now
-
-Deprecated
-==========
-
-Removed
-=======
 
 Fixed
 =====
 - OFPT_ERROR message could crash when logging it.
 - Fixed inconsistent Flow04 id for empty list actions.
-
-Security
-========
 
 [2022.1.1] - 2022-02-03
 ***********************
