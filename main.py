@@ -1,7 +1,6 @@
 """NApp responsible for the main OpenFlow basic operations."""
 
 import asyncio
-import logging
 import time
 from collections import defaultdict
 
@@ -12,7 +11,7 @@ from pyof.v0x01.common.header import Type
 from pyof.v0x01.controller2switch.common import StatsType
 from pyof.v0x04.controller2switch.common import MultipartType
 
-from kytos.core import KytosEvent, KytosNApp
+from kytos.core import KytosEvent, KytosNApp, log
 from kytos.core.connection import ConnectionState
 from kytos.core.helpers import alisten_to, listen_to, run_on_thread
 from kytos.core.interface import Interface
@@ -25,9 +24,6 @@ from napps.kytos.of_core.v0x01 import utils as of_core_v0x01_utils
 from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
-
-# pylint: disable=invalid-name
-log = logging.getLogger("kytos.napps.kytos/of_core")
 
 
 class Main(KytosNApp):
