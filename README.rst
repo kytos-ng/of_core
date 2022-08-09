@@ -56,6 +56,7 @@ Subscribed
 - ``kytos/of_core.v0x0[14].messages.out.ofpt_features_request``
 - ``kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed``
 - ``kytos/of_core.v0x0[14].messages.out.hello_failed``
+- ``kytos/of_core.handshake.completed``
 
 Published
 ---------
@@ -183,7 +184,7 @@ Content:
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x01.messages.out.ofpt_echo_request
+kytos/of_core.v0x0[14].messages.out.ofpt_echo_request
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send an EchoRequest to a datapath.
@@ -196,7 +197,7 @@ Content:
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x01.messages.out.ofpt_set_config
+kytos/of_core.v0x0[14].messages.out.ofpt_set_config
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send a SetConfig message after the Openflow handshake.
@@ -233,32 +234,6 @@ Content:
 .. code-block:: python3
 
     { 'message': <object>, # instance of a python-openflow MultiPart message
-      'destination': <object> # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x04.messages.out.ofpt_echo_request
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Send EchoRequest to a datapath.
-
-Content:
-
-.. code-block:: python3
-
-    { 'message': <object>, # instance of a python-openflow EchoRequest message
-      'destination': <object> # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x04.messages.out.ofpt_set_config
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Send a SetConfig message after the OpenFlow handshake.
-
-Content:
-
-.. code-block:: python3
-
-    { 'message': <object>, # instance of a python-openflow SetConfig message
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
@@ -327,6 +302,32 @@ Content:
     { 'message': <object>, # instance of a python-openflow FeaturesRequest message
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
+
+kytos/of_core.port_stats
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event with the new port stats and clean resources.
+
+Content:
+
+.. code-block:: python3
+
+    {
+      'switch': <switch>,
+      'port_stats': [<port_stats>] # list of port stats
+    }
+
+kytos/of_core.handshake.completed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Content:
+
+.. code-block:: python3
+
+    {
+      'switch': <switch>
+    }
+
 
 .. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
    :target: https://github.com/kytos-ng/of_core/blob/master/LICENSE
