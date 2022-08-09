@@ -56,6 +56,7 @@ Subscribed
 - ``kytos/of_core.v0x0[14].messages.out.ofpt_features_request``
 - ``kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed``
 - ``kytos/of_core.v0x0[14].messages.out.hello_failed``
+- ``kytos/of_core.handshake.completed``
 
 Published
 ---------
@@ -327,6 +328,32 @@ Content:
     { 'message': <object>, # instance of a python-openflow FeaturesRequest message
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
+
+kytos/of_core.port_stats
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event with the new port stats and clean resources.
+
+	Content:
+
+.. code-block:: python3
+
+    {
+				 'switch': <switch>,
+				 'port_stats': [<port_stats>]
+				}
+
+kytos/of_core.handshake.completed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	Content:
+
+.. code-block:: python3
+
+    {
+				 'switch': <switch>
+				}
+
 
 .. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
    :target: https://github.com/kytos-ng/of_core/blob/master/LICENSE
