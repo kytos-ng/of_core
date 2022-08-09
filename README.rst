@@ -334,25 +334,25 @@ kytos/of_core.port_stats
 
 Event with the new port stats and clean resources.
 
-	Content:
+Content:
 
 .. code-block:: python3
 
     {
-				 'switch': <switch>,
-				 'port_stats': [<port_stats>]
-				}
+      'switch': <switch>,
+      'port_stats': [<port_stats>] # list of port stats
+    }
 
 kytos/of_core.handshake.completed
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Content:
+Content:
 
 .. code-block:: python3
 
     {
-				 'switch': <switch>
-				}
+      'switch': <switch>
+    }
 
 
 .. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
