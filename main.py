@@ -58,7 +58,7 @@ class Main(KytosNApp):
         The execute method is called by the run method of KytosNApp class.
         Users shouldn't call this method directly.
         """
-        for switch in self.controller.switches.values():
+        for switch in self.controller.switches.copy().values():
             if switch.is_connected():
                 self.request_flow_list(switch)
                 if settings.SEND_ECHO_REQUESTS:
