@@ -3,19 +3,9 @@ from unittest.mock import MagicMock, Mock
 
 from pyof.utils import unpack
 
-from kytos.core import Controller
-from kytos.core.config import KytosConfig
 from kytos.core.connection import Connection, ConnectionState
 from kytos.core.interface import Interface
 from kytos.core.switch import Switch
-
-
-def get_controller_mock():
-    """Return a controller mock."""
-    options = KytosConfig().options['daemon']
-    controller = Controller(options)
-    controller.log = Mock()
-    return controller
 
 
 def get_interface_mock(interface_name, port, *args, **kwargs):

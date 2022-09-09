@@ -19,11 +19,11 @@ class JSONEncoderOF10(json.JSONEncoder):
     Make casting from UBInt8, UBInt16, UBInt32, UBInt64 to int.
     """
 
-    def default(self, obj):  # pylint: disable=E0202,W0221
+    def default(self, o):
         """Make casting from UBInt8, UBInt16, UBInt32, UBInt64 to int."""
-        if isinstance(obj, UBIntBase):
-            return int(obj)
-        return json.JSONEncoder.default(self, obj)
+        if isinstance(o, UBIntBase):
+            return int(o)
+        return json.JSONEncoder.default(self, o)
 
 
 def update_flow_list(controller, switch):

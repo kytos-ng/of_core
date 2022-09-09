@@ -3,9 +3,15 @@
 
 import pytest
 
-from kytos.lib.helpers import get_switch_mock
+from kytos.lib.helpers import get_controller_mock, get_switch_mock
 from napps.kytos.of_core.main import Main
-from tests.helpers import get_controller_mock
+
+
+@pytest.fixture(autouse=True)
+def ev_loop(monkeypatch, event_loop) -> None:
+    """asyncio event loop autouse fixture."""
+    monkeypatch.setattr("asyncio.get_running_loop", lambda: event_loop)
+    yield event_loop
 
 
 @pytest.fixture

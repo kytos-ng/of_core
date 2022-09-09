@@ -14,9 +14,10 @@ from pyof.v0x04.symmetric.echo_request import EchoRequest
 
 from kytos.core.connection import ConnectionState
 from kytos.core.events import KytosEvent
+from kytos.lib.helpers import get_controller_mock
 from napps.kytos.of_core.utils import GenericHello
-from tests.helpers import (get_connection_mock, get_controller_mock,
-                           get_interface_mock, get_switch_mock)
+from tests.helpers import (get_connection_mock, get_interface_mock,
+                           get_switch_mock)
 
 
 class TestMain(TestCase):
@@ -51,7 +52,7 @@ class TestMain(TestCase):
 
         actual_events = self.napp.listeners()
         for _event in expected_events:
-            self.assertIn(_event, actual_events, '%s' % _event)
+            self.assertIn(_event, actual_events, str(_event))
 
     def test_execute(self):
         """Test 'execute' main method."""

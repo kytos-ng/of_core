@@ -52,6 +52,7 @@ async def _aemit_message(controller, connection, message, direction):
         raise Exception("direction must be 'in' or 'out'")
 
     name = message.header.message_type.name.lower()
+    # pylint: disable=consider-using-f-string
     hex_version = 'v0x%0.2x' % (message.header.version + 0)
     priority = of_msg_prio(message.header.message_type.value)
     of_event = KytosEvent(
@@ -74,6 +75,7 @@ def _emit_message(controller, connection, message, direction):
         raise Exception("direction must be 'in' or 'out'")
 
     name = message.header.message_type.name.lower()
+    # pylint: disable=consider-using-f-string
     hex_version = 'v0x%0.2x' % (message.header.version + 0)
     priority = of_msg_prio(message.header.message_type.value)
     of_event = KytosEvent(
@@ -199,8 +201,8 @@ class GenericHello:
                     packet, offset, elem_value_size)
 
                 elements[elem_type] = elem_value
-        except IndexError:
-            raise UnpackException
+        except IndexError as exc:
+            raise UnpackException from exc
 
         self.elements = elements
 

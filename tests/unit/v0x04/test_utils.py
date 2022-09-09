@@ -2,13 +2,13 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from kytos.lib.helpers import get_connection_mock, get_switch_mock
+from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
+                               get_switch_mock)
 from napps.kytos.of_core.v0x04.utils import (handle_features_reply,
                                              handle_port_desc, say_hello,
                                              send_desc_request, send_echo,
                                              send_port_request,
                                              send_set_config)
-from tests.helpers import get_controller_mock
 
 
 @patch('napps.kytos.of_core.v0x04.utils.aemit_message_out')

@@ -8,10 +8,9 @@ from pyof.v0x01.controller2switch.common import StatsType
 from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core.connection import ConnectionState
-from kytos.lib.helpers import (get_connection_mock, get_kytos_event_mock,
-                               get_switch_mock)
+from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
+                               get_kytos_event_mock, get_switch_mock)
 from napps.kytos.of_core.utils import NegotiationException
-from tests.helpers import get_controller_mock
 
 # pylint: disable=protected-access, invalid-name
 

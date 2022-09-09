@@ -637,9 +637,9 @@ class Main(KytosNApp):
             interface = source.switch.get_interface_by_port_no(port_no)
             current_status = None
             if interface:
-                log.info('Modified %s %s:%s' %
-                         (interface, interface.switch.dpid,
-                          interface.port_number))
+                dpid = interface.switch.dpid
+                port_number = interface.port_number
+                log.info(f"Modified {interface} {dpid}:{port_number}")
                 current_status = interface.state
                 interface.state = port.state.value
                 interface.name = port.name.value
@@ -673,8 +673,8 @@ class Main(KytosNApp):
 def _get_version_from_bitmask(message_versions):
     """Get common version from hello message version bitmap."""
     try:
-        return max([version for version in message_versions
-                    if version in settings.OPENFLOW_VERSIONS])
+        return max((version for version in message_versions
+                    if version in settings.OPENFLOW_VERSIONS))
     except ValueError:
         return None
 

@@ -4,13 +4,13 @@ from unittest.mock import MagicMock, patch
 
 from pyof.v0x04.common.header import Type
 
-from kytos.lib.helpers import get_connection_mock, get_switch_mock
+from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
+                               get_switch_mock)
 from napps.kytos.of_core.msg_prios import of_msg_prio
 from napps.kytos.of_core.utils import (GenericHello, _emit_message,
                                        _unpack_int, aemit_message_in,
                                        aemit_message_out, emit_message_in,
                                        emit_message_out, of_slicer)
-from tests.helpers import get_controller_mock
 
 
 @patch('kytos.core.buffers.KytosEventBuffer.aput')
