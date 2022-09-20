@@ -2,11 +2,11 @@
 from unittest import TestCase, mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from kytos.lib.helpers import get_connection_mock, get_switch_mock
+from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
+                               get_switch_mock)
 from napps.kytos.of_core.v0x01.utils import (handle_features_reply, say_hello,
                                              send_desc_request, send_echo,
                                              send_set_config)
-from tests.helpers import get_controller_mock
 
 
 class TestUtils(TestCase):
