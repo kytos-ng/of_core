@@ -432,13 +432,13 @@ class Main(KytosNApp):
 
     async def fail_negotiation(self, connection, hello_message):
         """Send Error message and emit event upon negotiation failure."""
-        log.warning('connection %s: version negotiation failed',
-                    connection.id)
+        log.warning('connection %s: version %d negotiation failed',
+                    connection.id, hello_message.header.version)
         connection.protocol.state = 'hello_failed'
         event_raw = KytosEvent(
             name='kytos/of_core.hello_failed',
             content={'source': connection})
-        self.controller.buffers.app.aput(event_raw)
+        await self.controller.buffers.app.aput(event_raw)
 
         version = max(settings.OPENFLOW_VERSIONS)
         pyof_lib = PYOF_VERSION_LIBS[version]

@@ -85,7 +85,7 @@ class TestMatch(TestCase):
             self.EXPECTED_OF_13
         )
 
-    def test_match01_as_dict(self) -> None:
+    def test_match04_as_dict(self) -> None:
         """Test match04 as_dict."""
         match_values = {'in_port': 1, 'dl_vlan': 2}
         match_04 = Match04(**match_values)

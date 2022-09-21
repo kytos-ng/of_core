@@ -204,6 +204,57 @@ class TestNApp:
         await napp._handle_multipart_reply(ofpmp_desc, switch_one)
         assert switch_one.update_description.call_count == 1
 
+    @patch('napps.kytos.of_core.main.log')
+    @patch('kytos.core.buffers.KytosEventBuffer.aput')
+    @patch('napps.kytos.of_core.main.Main._update_switch_flows')
+    @patch('napps.kytos.of_core.v0x04.flow.Flow.from_of_flow_stats')
+    @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
+    async def test_on_multipart_flow_stats(
+        self,
+        mock_is_multipart_reply_ours,
+        mock_from_of_flow_stats_v0x04,
+        mock_update_switch_flows,
+        mock_buffer_aput,
+        mock_log,
+        switch_one,
+        napp
+    ):
+        """Test on multipart flow stats."""
+        mock_is_multipart_reply_ours.return_value = True
+        mock_from_of_flow_stats_v0x04.return_value = "ABC"
+
+        flow_msg = MagicMock()
+        flow_msg.body = "A"
+        flow_msg.flags.value = 2
+        flow_msg.body_type = MultipartType.OFPMP_FLOW
+        flow_msg.header.xid = 0xABC
+
+        dpid = switch_one.id
+        xid_flows = 0xABC
+        napp._multipart_replies_xids = {dpid: {'flows': xid_flows}}
+
+        await napp._handle_multipart_flow_stats(flow_msg, switch_one)
+
+        mock_is_multipart_reply_ours.assert_called_with(flow_msg,
+                                                        switch_one,
+                                                        'flows')
+        mock_from_of_flow_stats_v0x04.assert_called_with(flow_msg.body,
+                                                         switch_one)
+        mock_update_switch_flows.assert_called_with(switch_one)
+        assert mock_buffer_aput.call_count == 1
+        kytos_event = mock_buffer_aput.call_args[0][0]
+        assert kytos_event.name == 'kytos/of_core.flow_stats.received'
+        assert kytos_event.content['switch'] == switch_one
+        assert "replies_flows" in kytos_event.content
+
+        # Test when update_switch_flows fails
+        mock_update_switch_flows.side_effect = KeyError()
+        mock_buffer_aput.call_count = 0
+        mock_log.error.call_count = 0
+        await napp._handle_multipart_flow_stats(flow_msg, switch_one)
+        assert mock_log.error.call_count == 1
+        mock_buffer_aput.assert_not_called()
+
     @patch('napps.kytos.of_core.main.Main._new_port_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
     async def test_handle_multipart_port_stats(
