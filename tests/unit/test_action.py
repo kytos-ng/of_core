@@ -1,20 +1,12 @@
-"""Test Action abstraction for v0x01 and v0x04."""
+"""Test Action abstraction for v0x04."""
 import pytest
 from pyof.foundation.basic_types import UBInt32
 
-from napps.kytos.of_core.v0x01.flow import Action as Action01
 from napps.kytos.of_core.v0x04.flow import Action as Action04
 
 
 @pytest.mark.parametrize(
     'action_class, action_dict', [
-        [
-            Action01,
-            {
-                'action_type': 'output',
-                'port': UBInt32(1),
-            },
-        ],
         [
             Action04,
             {

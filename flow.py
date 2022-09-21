@@ -2,16 +2,15 @@
 
 Use common fields of FlowStats/FlowMod of supported OF versions. ``match`` and
 ``actions`` fields are different, so Flow, Action and Match related classes are
-inherited in v0x01 and v0x04 modules.
+inherited in v0x04 modules.
 """
 import json
 from abc import ABC, abstractmethod
 from hashlib import md5
 
-# Note: FlowModCommand is the same in both v0x01 and v0x04
 from pyof.v0x04.controller2switch.flow_mod import FlowModCommand
 
-from napps.kytos.of_core import v0x01, v0x04
+from napps.kytos.of_core import v0x04
 
 
 class FlowFactory(ABC):  # pylint: disable=too-few-public-methods
@@ -36,8 +35,6 @@ class FlowFactory(ABC):  # pylint: disable=too-few-public-methods
         if not of_version and default:
             return default
 
-        if of_version == 0x01:
-            return v0x01.flow.Flow
         if of_version == 0x04:
             return v0x04.flow.Flow
         raise NotImplementedError(f'Unsupported OpenFlow version {of_version}')
@@ -51,7 +48,7 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
     actions that should occur in case any match happen.
     """
 
-    # of_version number: 0x01, 0x04
+    # of_version number: 0x04
     of_version = None
 
     # Subclasses must set their version-specific classes
@@ -121,16 +118,7 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
             'priority': self.priority,
             'cookie': self.cookie,
         }
-        if (
-            self.switch.connection and
-            self.switch.connection.protocol and
-            self.switch.connection.protocol.version == 0x01
-        ):
-            flow_str = json.dumps(flow_match_fields,
-                                  cls=v0x01.utils.JSONEncoderOF10,
-                                  sort_keys=True)
-        else:
-            flow_str = json.dumps(flow_match_fields, sort_keys=True)
+        flow_str = json.dumps(flow_match_fields, sort_keys=True)
         md5sum = md5()
         md5sum.update(flow_str.encode('utf-8'))
         return md5sum.hexdigest()
@@ -197,14 +185,6 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
             string: Flow JSON string representation.
 
         """
-        if (
-            self.switch.connection and
-            self.switch.connection.protocol and
-            self.switch.connection.protocol.version == 0x01
-        ):
-            return json.dumps(self.as_dict(include_id),
-                              cls=v0x01.utils.JSONEncoderOF10,
-                              sort_keys=sort_keys)
         return json.dumps(self.as_dict(include_id), sort_keys=sort_keys)
 
     def as_of_add_flow_mod(self):
@@ -488,7 +468,7 @@ class Stats:
 
 
 class FlowStats(Stats):
-    """Common fields for 1.0 and 1.3 FlowStats."""
+    """Fields for 1.3 FlowStats."""
 
     def __init__(self):
         """Initialize all statistics as ``None``."""
@@ -499,7 +479,7 @@ class FlowStats(Stats):
 
 
 class PortStats(Stats):  # pylint: disable=too-many-instance-attributes
-    """Common fields for 1.0 and 1.3 PortStats."""
+    """Fields for 1.3 PortStats."""
 
     def __init__(self):
         """Initialize all statistics as ``None``."""

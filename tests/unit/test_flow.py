@@ -1,11 +1,10 @@
-"""Tests for high-level Flow of OpenFlow 1.0 and 1.3."""
+"""Tests for high-level Flow of OpenFlow 1.3."""
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
-from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
 from napps.kytos.of_core.v0x04.flow import Match as Match04
 
@@ -48,10 +47,7 @@ class TestFlowFactory(TestCase):
         """Execute steps before each tests.
         Set the server_name_url from kytos/of_core
         """
-        self.switch_v0x01 = get_switch_mock("00:00:00:00:00:00:00:01", 0x01)
         self.switch_v0x04 = get_switch_mock("00:00:00:00:00:00:00:02", 0x04)
-        self.switch_v0x01.connection = get_connection_mock(
-            0x01, get_switch_mock("00:00:00:00:00:00:00:03"))
         self.switch_v0x04.connection = get_connection_mock(
             0x04, get_switch_mock("00:00:00:00:00:00:00:04"))
 
@@ -62,22 +58,15 @@ class TestFlowFactory(TestCase):
 
         self.factory = FlowFactory()
 
-    @patch('napps.kytos.of_core.flow.v0x01')
     @patch('napps.kytos.of_core.flow.v0x04')
-    def test_from_of_flow_stats(self, *args):
+    def test_from_of_flow_stats(self, mock_flow_v0x04):
         """Test from_of_flow_stats."""
-        (mock_flow_v0x04, mock_flow_v0x01) = args
         mock_stats = MagicMock()
-
-        self.factory.from_of_flow_stats(mock_stats, self.switch_v0x01)
-        mock_flow_v0x01.flow.Flow.from_of_flow_stats.assert_called()
-
         self.factory.from_of_flow_stats(mock_stats, self.switch_v0x04)
         mock_flow_v0x04.flow.Flow.from_of_flow_stats.assert_called()
 
     def test_get_class(self) -> None:
         """Test get_class."""
-        assert self.factory.get_class(self.switch_v0x01) == Flow01
         assert self.factory.get_class(self.switch_v0x04) == Flow04
         switch = MagicMock(connection=None)
         assert self.factory.get_class(switch, Flow04) == Flow04
@@ -166,12 +155,11 @@ class TestFlow(TestCase):
         ]
     }
 
-    @patch('napps.kytos.of_core.flow.v0x01')
     @patch('napps.kytos.of_core.flow.v0x04')
     @patch('napps.kytos.of_core.flow.json.dumps')
     def test_flow_mod_goto(self, *args):
         """Convert a dict to flow and vice-versa."""
-        (mock_json, _, _) = args
+        (mock_json, _) = args
         dpid = "00:00:00:00:00:00:00:01"
         mock_json.return_value = str(self.requested_instructions)
         mock_switch = get_switch_mock(dpid, 0x04)
@@ -182,17 +170,16 @@ class TestFlow(TestCase):
         del actual['stats']
         self.assertDictEqual(self.requested_instructions, actual)
 
-    @patch('napps.kytos.of_core.flow.v0x01')
     @patch('napps.kytos.of_core.flow.v0x04')
     @patch('napps.kytos.of_core.flow.json.dumps')
     def test_flow_mod(self, *args):
         """Convert a dict to flow and vice-versa."""
-        (mock_json, _, _) = args
+        (mock_json, _,) = args
         dpid = "00:00:00:00:00:00:00:01"
         mock_json.return_value = str(self.requested)
         for flow_class, version, expected in \
-            [(Flow01, 0x01, self.expected_10),
-             (Flow04, 0x04, self.expected_13)]:
+            [
+                (Flow04, 0x04, self.expected_13)]:
             with self.subTest(flow_class=flow_class):
                 mock_switch = get_switch_mock(dpid, version)
                 mock_switch.id = dpid
@@ -204,30 +191,25 @@ class TestFlow(TestCase):
     @patch('napps.kytos.of_core.flow.FlowBase._as_of_flow_mod')
     def test_of_flow_mod(self, mock_flow_mod):
         """Test convertion from Flow to OFFlow."""
-
-        for flow_class in Flow01, Flow04:
-            with self.subTest(flow_class=flow_class):
-                flow = flow_class.from_dict(self.requested, self.mock_switch)
-                flow.as_of_add_flow_mod()
-                mock_flow_mod.assert_called()
-
-                flow.as_of_delete_flow_mod()
-                mock_flow_mod.assert_called()
+        with self.subTest(flow_class=Flow04):
+            flow = Flow04.from_dict(self.requested, self.mock_switch)
+            flow.as_of_add_flow_mod()
+            mock_flow_mod.assert_called()
+            flow.as_of_delete_flow_mod()
+            mock_flow_mod.assert_called()
 
     # pylint: disable = protected-access
     def test_as_of_flow_mod(self):
         """Test _as_of_flow_mod."""
         mock_command = MagicMock()
-        for flow_class in Flow01, Flow04:
-            with self.subTest(flow_class=flow_class):
-                flow_mod = flow_class.from_dict(self.requested,
-                                                self.mock_switch)
-                response = flow_mod._as_of_flow_mod(mock_command)
-                self.assertEqual(response.cookie, self.requested['cookie'])
-                self.assertEqual(response.idle_timeout,
-                                 self.requested['idle_timeout'])
-                self.assertEqual(response.hard_timeout,
-                                 self.requested['hard_timeout'])
+        with self.subTest(flow_class=Flow04):
+            flow_mod = Flow04.from_dict(self.requested, self.mock_switch)
+            response = flow_mod._as_of_flow_mod(mock_command)
+            self.assertEqual(response.cookie, self.requested['cookie'])
+            self.assertEqual(response.idle_timeout,
+                             self.requested['idle_timeout'])
+            self.assertEqual(response.hard_timeout,
+                             self.requested['hard_timeout'])
 
     @staticmethod
     def test_match_id():
@@ -274,11 +256,10 @@ class TestFlowBase(TestCase):
                      'stats': {}
                      }
 
-        for flow_class in Flow01, Flow04:
-            with self.subTest(flow_class=flow_class):
-                flow_1 = flow_class.from_dict(flow_dict, mock_switch)
-                flow_2 = flow_class.from_dict(flow_dict, mock_switch)
-                self.assertEqual(flow_1 == flow_2, True)
+        with self.subTest(flow_class=Flow04):
+            flow_1 = Flow04.from_dict(flow_dict, mock_switch)
+            flow_2 = Flow04.from_dict(flow_dict, mock_switch)
+            self.assertEqual(flow_1 == flow_2, True)
 
     def test__eq__success_with_different_flows(self):
         """Test success case to __eq__ override with different flows."""
@@ -314,11 +295,10 @@ class TestFlowBase(TestCase):
                        'stats': {}
                        }
 
-        for flow_class in Flow01, Flow04:
-            with self.subTest(flow_class=flow_class):
-                flow_1 = flow_class.from_dict(flow_dict_1, mock_switch)
-                flow_2 = flow_class.from_dict(flow_dict_2, mock_switch)
-                self.assertEqual(flow_1 == flow_2, False)
+        with self.subTest(flow_class=Flow04):
+            flow_1 = Flow04.from_dict(flow_dict_1, mock_switch)
+            flow_2 = Flow04.from_dict(flow_dict_2, mock_switch)
+            self.assertEqual(flow_1 == flow_2, False)
 
     def test__eq__fail(self):
         """Test the case where __eq__ receives objects with different types."""
@@ -339,9 +319,8 @@ class TestFlowBase(TestCase):
                      'stats': {}
                      }
 
-        for flow_class in Flow01, Flow04:
-            with self.subTest(flow_class=flow_class):
-                flow_1 = flow_class.from_dict(flow_dict, mock_switch)
-                flow_2 = "any_string_object"
-                with self.assertRaises(ValueError):
-                    return flow_1 == flow_2
+        with self.subTest(flow_class=Flow04):
+            flow_1 = Flow04.from_dict(flow_dict, mock_switch)
+            flow_2 = "any_string_object"
+            with self.assertRaises(ValueError):
+                return flow_1 == flow_2

@@ -48,14 +48,13 @@ Subscribed
 ----------
 
 - ``kytos/core.openflow.raw.in``
-- ``kytos/of_core.v0x01.messages.in.ofpt_stats_reply``
-- ``kytos/of_core.v0x0[14].messages.in.ofpt_features_reply``
+- ``kytos/of_core.v0x04.messages.in.ofpt_features_reply``
 - ``kytos/of_core.v0x04.messages.in.ofpt_multipart_reply``
-- ``kytos/of_core.v0x0[14].messages.in.ofpt_echo_request``
-- ``kytos/of_core.v0x0[14].messages.out.ofpt_echo_reply``
-- ``kytos/of_core.v0x0[14].messages.out.ofpt_features_request``
+- ``kytos/of_core.v0x04.messages.in.ofpt_echo_request``
+- ``kytos/of_core.v0x04.messages.out.ofpt_echo_reply``
+- ``kytos/of_core.v0x04.messages.out.ofpt_features_request``
 - ``kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed``
-- ``kytos/of_core.v0x0[14].messages.out.hello_failed``
+- ``kytos/of_core.v0x04.messages.out.hello_failed``
 - ``kytos/of_core.handshake.completed``
 
 Published
@@ -171,20 +170,7 @@ Content:
       'source': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x01.messages.out.ofpt_stats_request
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Send a StatsRequest message for request stats of flow to switches.
-
-Content:
-
-.. code-block:: python3
-
-    { 'message': <object>, # instance of a python-openflow StatsRequest message
-      'destination': <object> # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x0[14].messages.out.ofpt_echo_request
+kytos/of_core.v0x04.messages.out.ofpt_echo_request
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send an EchoRequest to a datapath.
@@ -197,7 +183,7 @@ Content:
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x0[14].messages.out.ofpt_set_config
+kytos/of_core.v0x04.messages.out.ofpt_set_config
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send a SetConfig message after the Openflow handshake.
@@ -207,19 +193,6 @@ Content:
 .. code-block:: python3
 
     { 'message': <object>, # instance of a python-openflow SetConfig message
-      'destination': <object> # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x01.messages.out.ofpt_hello
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Send back a Hello packet with the same version as the switch.
-
-Content:
-
-.. code-block:: python3
-
-    { 'message': <object>, # instance of a python-openflow Hello message
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
@@ -250,21 +223,7 @@ Content:
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x01.messages.in.{name}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Emit a KytosEvent for an incoming message containing the message
-and the source.
-
-Content:
-
-.. code-block:: python3
-
-    { 'message': <object>, # instance of a python-openflow
-      'source': <object> # instance of kytos.core.switch.Connection class
-    }
-
-kytos/of_core.v0x0[14].messages.out.EchoReply
+kytos/of_core.v0x04.messages.out.EchoReply
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send an Echo Reply message to data path.
@@ -277,7 +236,7 @@ Content:
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x0[14].messages.out.ofpt_error
+kytos/of_core.v0x04.messages.out.ofpt_error
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send Error message and emit event upon negotiation failure.
@@ -290,7 +249,7 @@ Content:
       'destination': <object> # instance of kytos.core.switch.Connection class
     }
 
-kytos/of_core.v0x0[14].messages.out.ofpt_features_request
+kytos/of_core.v0x04.messages.out.ofpt_features_request
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send a feature request to the switch.
