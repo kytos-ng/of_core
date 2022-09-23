@@ -4,7 +4,7 @@ import struct
 from collections import OrderedDict
 
 from pyof.foundation.exceptions import PackException, UnpackException
-from pyof.v0x01.common.header import Type as OFPTYPE
+from pyof.v0x04.common.header import Type as OFPTYPE
 
 from kytos.core import KytosEvent
 from napps.kytos.of_core import settings

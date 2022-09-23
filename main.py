@@ -7,8 +7,7 @@ from collections import defaultdict
 from pyof.foundation.exceptions import UnpackException
 from pyof.foundation.network_types import Ethernet, EtherType
 from pyof.utils import PYOF_VERSION_LIBS, unpack
-from pyof.v0x01.common.header import Type
-from pyof.v0x01.controller2switch.common import StatsType
+from pyof.v0x04.common.header import Type
 from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core import KytosEvent, KytosNApp, log
@@ -20,8 +19,6 @@ from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
                                        aemit_message_in, aemit_message_out,
                                        emit_message_in, emit_message_out,
                                        of_slicer)
-from napps.kytos.of_core.v0x01 import utils as of_core_v0x01_utils
-from napps.kytos.of_core.v0x01.flow import Flow as Flow01
 from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
 
@@ -43,8 +40,7 @@ class Main(KytosNApp):
         The setup method is automatically called by the run method.
         Users shouldn't call this method directly.
         """
-        self.of_core_version_utils = {0x01: of_core_v0x01_utils,
-                                      0x04: of_core_v0x04_utils}
+        self.of_core_version_utils = {0x04: of_core_v0x04_utils}
         self.execute_as_loop(settings.STATS_INTERVAL)
         self._connection_lock = defaultdict(asyncio.Lock)
 
@@ -103,10 +99,7 @@ class Main(KytosNApp):
         """Send flow stats request to a connected switch."""
         time.sleep(self._get_switch_req_stats_delay(switch))
         of_version = switch.connection.protocol.version
-        if of_version == 0x01:
-            of_core_v0x01_utils.update_flow_list(self.controller, switch)
-            of_core_v0x01_utils.request_port_stats(self.controller, switch)
-        elif of_version == 0x04:
+        if of_version == 0x04:
             if self._check_overlapping_multipart_request(switch):
                 return
 
@@ -117,40 +110,7 @@ class Main(KytosNApp):
             self._multipart_replies_xids[switch.id] = {'flows': xid_flows,
                                                        'ports': xid_ports}
 
-    @listen_to('kytos/of_core.v0x01.messages.in.ofpt_stats_reply')
-    def on_stats_reply(self, event):
-        """Handle stats replies for v0x01 switches.
-
-        Args:
-            event (:class:`~kytos.core.events.KytosEvent):
-                Event with ofpt_stats_reply in message.
-        """
-        self.handle_stats_reply(event)
-
-    def handle_stats_reply(self, event):
-        """Handle stats replies for v0x01 switches."""
-        switch = event.source.switch
-        msg = event.content['message']
-        if msg.body_type == StatsType.OFPST_FLOW:
-            switch.flows = [Flow01.from_of_flow_stats(f, switch)
-                            for f in msg.body]
-            event_raw = KytosEvent(
-                name='kytos/of_core.flow_stats.received',
-                content={'switch': switch})
-            self.controller.buffers.app.put(event_raw)
-        elif msg.body_type == StatsType.OFPST_PORT:
-            port_stats = [of_port_stats for of_port_stats in msg.body]
-            port_stats_event = KytosEvent(
-                name="kytos/of_core.port_stats",
-                content={
-                    'switch': switch,
-                    'port_stats': port_stats
-                    })
-            self.controller.buffers.app.put(port_stats_event)
-        elif msg.body_type == StatsType.OFPST_DESC:
-            switch.update_description(msg.body)
-
-    @listen_to('kytos/of_core.v0x0[14].messages.in.ofpt_features_reply')
+    @listen_to('kytos/of_core.v0x04.messages.in.ofpt_features_reply')
     def on_features_reply(self, event):
         """Handle kytos/of_core.messages.in.ofpt_features_reply event.
 
@@ -415,7 +375,7 @@ class Main(KytosNApp):
         if connection.is_alive():
             await aemit_message_out(self.controller, connection, message)
 
-    @listen_to('kytos/of_core.v0x0[14].messages.in.ofpt_echo_request')
+    @listen_to('kytos/of_core.v0x04.messages.in.ofpt_echo_request')
     def on_echo_request(self, event):
         """Handle Echo Request Messages.
 
@@ -472,13 +432,13 @@ class Main(KytosNApp):
 
     async def fail_negotiation(self, connection, hello_message):
         """Send Error message and emit event upon negotiation failure."""
-        log.warning('connection %s: version negotiation failed',
-                    connection.id)
+        log.warning('connection %s: version %d negotiation failed',
+                    connection.id, hello_message.header.version)
         connection.protocol.state = 'hello_failed'
         event_raw = KytosEvent(
             name='kytos/of_core.hello_failed',
             content={'source': connection})
-        self.controller.buffers.app.aput(event_raw)
+        await self.controller.buffers.app.aput(event_raw)
 
         version = max(settings.OPENFLOW_VERSIONS)
         pyof_lib = PYOF_VERSION_LIBS[version]
@@ -492,7 +452,7 @@ class Main(KytosNApp):
         await self.aemit_message_out(connection, error_message)
 
     # May be removed
-    @alisten_to('kytos/of_core.v0x0[14].messages.out.ofpt_echo_reply')
+    @alisten_to('kytos/of_core.v0x04.messages.out.ofpt_echo_reply')
     async def on_queued_openflow_echo_reply(self, event):
         """Handle queued OpenFlow echo reply messages.
 
@@ -510,7 +470,7 @@ class Main(KytosNApp):
             features_request.FeaturesRequest()
         await self.aemit_message_out(destination, features_request)
 
-    @listen_to('kytos/of_core.v0x0[14].messages.out.ofpt_features_request')
+    @listen_to('kytos/of_core.v0x04.messages.out.ofpt_features_request')
     def on_features_request_sent(self, event):
         """Ensure request has actually been sent before changing state."""
         self.handle_features_request_sent(event)
@@ -522,7 +482,7 @@ class Main(KytosNApp):
             event.destination.protocol.state = 'waiting_features_reply'
 
     @listen_to('kytos/of_core.v0x[0-9a-f]{2}.messages.in.hello_failed',
-               'kytos/of_core.v0x0[14].messages.out.hello_failed')
+               'kytos/of_core.v0x04.messages.out.hello_failed')
     def on_openflow_in_hello_failed(self, event):
         """Close the connection upon hello failure."""
         self.handle_openflow_in_hello_failed(event)

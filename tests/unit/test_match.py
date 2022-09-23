@@ -1,8 +1,7 @@
-"""Test Match abstraction for v0x01 and v0x04."""
+"""Test Match abstraction for v0x04."""
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from napps.kytos.of_core.v0x01.flow import Match as Match01
 from napps.kytos.of_core.v0x04.flow import Match as Match04
 
 
@@ -58,11 +57,10 @@ class TestMatch(TestCase):
 
     def test_all_fields(self):
         """Test all match fields from and to dict."""
-        for match_class in Match01, Match04:
-            with self.subTest(match_class=match_class):
-                match = match_class.from_dict(self.EXPECTED)
-                actual = match.as_dict()
-                self.assertDictEqual(self.EXPECTED, actual)
+        with self.subTest(match_class=Match04):
+            match = Match04.from_dict(self.EXPECTED)
+            actual = match.as_dict()
+            self.assertDictEqual(self.EXPECTED, actual)
 
     @patch('napps.kytos.of_core.v0x04.flow.MatchFieldFactory')
     def test_from_of_match(self, mock_factory):
@@ -87,8 +85,8 @@ class TestMatch(TestCase):
             self.EXPECTED_OF_13
         )
 
-    def test_match01_as_dict(self) -> None:
-        """Test match01 as_dict."""
+    def test_match04_as_dict(self) -> None:
+        """Test match04 as_dict."""
         match_values = {'in_port': 1, 'dl_vlan': 2}
-        match_01 = Match01(**match_values)
-        self.assertEqual(len(match_01.as_dict()), len(match_values))
+        match_04 = Match04(**match_values)
+        self.assertEqual(len(match_04.as_dict()), len(match_values))

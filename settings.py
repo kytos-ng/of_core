@@ -10,7 +10,7 @@ STATS_REQ_SKIP = 5
 ALL_OPENFLOW_VERSIONS = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
 
 #: Supported Versions
-OPENFLOW_VERSIONS = [0x01, 0x04]
+OPENFLOW_VERSIONS = [0x04]
 
 #: If SEND_FEATURES_REQUEST_ON_ECHO is True, kytos/of_core must send
 #: FeaturesRequest when when it sends an echo reply message
