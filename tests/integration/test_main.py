@@ -146,20 +146,38 @@ class TestAsync:
         event_switch = stats_event.source.switch
         await napp._handle_multipart_reply(reply, event_switch)
 
-        expected_event = 'kytos/of_core.switch.port.created'
-        expected_dpid = '00:00:00:00:00:00:00:02'
-        for _ in range(0, 4):
+        ex_switch = 'kytos/of_core.switch.port.created'
+        ex_interface = 'kytos/of_core.switch.interface.created'
+        ex_dpid = '00:00:00:00:00:00:00:02'
+        ex_port = 7
+        
+        for i in range(0, 2):
             of_event_01 = await napp.controller.buffers.app.aget()
             of_event_02 = await napp.controller.buffers.app.aget()
-            print(of_event_01.content)
-            print(of_event_02.content)
-            #assert of_event_01.name == expected_event
-            #assert of_event_01.content['switch'] == expected_dpid
-            #assert of_event_01.content['port'] == 7
-            #assert of_event_02.name == expected_event
-            #assert of_event_02.content['switch'] == expected_dpid
-            #assert of_event_02.content['port'] == 6
-        assert 1 == 2  # For print
+            assert of_event_01.name == ex_switch
+            assert of_event_01.content['switch'] == ex_dpid
+            assert of_event_01.content['port'] == ex_port - i
+            assert of_event_02.name == ex_interface
+            assert getattr(of_event_02.content['interface'],
+                           'port_number') == ex_port - i
+
+        of_event_01 = await napp.controller.buffers.app.aget()
+        assert of_event_01.name == 'kytos/of_core.switch.interfaces.created'
+        assert len(of_event_01.content['interfaces']) == 2
+
+        for i in range(0, 2):
+            of_event_01 = await napp.controller.buffers.app.aget()
+            of_event_02 = await napp.controller.buffers.app.aget()
+            assert of_event_01.name == ex_switch
+            assert of_event_01.content['switch'] == ex_dpid
+            assert of_event_01.content['port'] == ex_port - i
+            assert of_event_02.name == ex_interface
+            assert getattr(of_event_02.content['interface'],
+                           'port_number') == ex_port - i
+
+        of_event_01 = await napp.controller.buffers.app.aget()
+        assert of_event_01.name == 'kytos/of_core.switch.interfaces.created'
+        assert len(of_event_01.content['interfaces']) == 2
 
 class TestMain(TestCase):
     """Class to Integration test kytos/of_core main."""
