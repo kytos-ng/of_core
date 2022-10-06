@@ -2,6 +2,7 @@
 
 from unittest import TestCase
 from unittest.mock import patch
+import time
 
 from pyof.v0x04.controller2switch.features_reply import \
     FeaturesReply as FReply_v0x04
@@ -20,11 +21,37 @@ from tests.helpers import (get_connection_mock, get_interface_mock,
 class TestAsync:
     """Test async methods from main"""
 
-    async def test_handle_hello_raw_in(self, napp):
-        """Test handling hello raw in message."""
-        # pylint: disable=import-outside-toplevel
+    def setup(self):
+        """setup for napp mock"""
         from napps.kytos.of_core.main import Main
-        napp = Main(get_controller_mock())
+        self.napp = Main(get_controller_mock())
+    
+    @patch("time.sleep")
+    def test_execute(self, mock_sleep):
+        """Test 'execute' main method."""
+        dpid_01 = "00:00:00:00:00:00:00:01"
+        dpid_02 = "00:00:00:00:00:00:00:02"
+        sw_04 = get_switch_mock(dpid_02)
+        sw_04.connection = get_connection_mock(
+            0x04, get_switch_mock(dpid_01), ConnectionState.ESTABLISHED)
+        print(sw_04.is_active(), "<- what is this")
+        sw = self.napp.controller.get_switch_or_create(dpid_02, 
+                                                       sw_04.connection)
+        sw.is_connected = lambda: True
+        self.napp.request_flow_list = self.napp._request_flow_list
+        self.napp.execute()
+        mock_sleep.assert_called()
+        expected = [
+            'kytos/of_core.v0x04.messages.out.ofpt_echo_request',
+            'kytos/of_core.v0x04.messages.out.ofpt_multipart_request',
+            'kytos/of_core.v0x04.messages.out.ofpt_multipart_request',
+        ]
+        for message in expected:
+            of_event = self.napp.controller.buffers.msg_out.get()
+            assert of_event.name == message
+
+    async def test_handle_hello_raw_in(self):
+        """Test handling hello raw in message."""
         event_name = 'kytos/core.openflow.raw.in'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -34,20 +61,17 @@ class TestAsync:
         event = KytosEvent(name=event_name,
                            content={'source': switch.connection,
                                     'new_data': data})
-        await napp.on_raw_in(event)
+        await self.napp.on_raw_in(event)
         expected = [
             'kytos/of_core.v0x04.messages.out.ofpt_hello',
             'kytos/of_core.v0x04.messages.out.ofpt_features_request'
         ]
         for message in expected:
-            of_event = napp.controller.buffers.msg_out.get()
+            of_event = self.napp.controller.buffers.msg_out.get()
             assert of_event.name == message
 
     async def test_handle_port_status_raw_in(self):
         """Test handling port_status raw in message."""
-        # pylint: disable=import-outside-toplevel
-        from napps.kytos.of_core.main import Main
-        napp = Main(get_controller_mock())
         event_name = 'kytos/core.openflow.raw.in'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -64,16 +88,13 @@ class TestAsync:
         event = KytosEvent(name=event_name,
                            content={'source': switch.connection,
                                     'new_data': data})
-        await napp.on_raw_in(event)
-        of_event = await napp.controller.buffers.msg_in.aget()
+        await self.napp.on_raw_in(event)
+        of_event = await self.napp.controller.buffers.msg_in.aget()
         event = 'kytos/of_core.v0x04.messages.in.ofpt_port_status'
         assert of_event.name == event
 
     async def test_handle_packet_in_raw_in(self):
         """Test handling packet_in raw in message."""
-        # pylint: disable=import-outside-toplevel
-        from napps.kytos.of_core.main import Main
-        napp = Main(get_controller_mock())
         event_name = 'kytos/core.openflow.raw.in'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -94,16 +115,13 @@ class TestAsync:
         event = KytosEvent(name=event_name,
                            content={'source': switch.connection,
                                     'new_data': data})
-        await napp.on_raw_in(event)
-        of_event = await napp.controller.buffers.msg_in.aget()
+        await self.napp.on_raw_in(event)
+        of_event = await self.napp.controller.buffers.msg_in.aget()
         event = 'kytos/of_core.v0x04.messages.in.ofpt_packet_in'
         assert of_event.name == event
 
     async def test_handle_port_desc_multipart_reply(self):
         """Test handling to ofpt_PORT_DESC."""
-        # pylint: disable=import-outside-toplevel
-        from napps.kytos.of_core.main import Main
-        napp = Main(get_controller_mock())
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -132,7 +150,7 @@ class TestAsync:
 
         reply = stats_event.content['message']
         event_switch = stats_event.source.switch
-        await napp._handle_multipart_reply(reply, event_switch)
+        await self.napp._handle_multipart_reply(reply, event_switch)
 
         # Send port_desc pack without interface
         switch = get_switch_mock()
@@ -144,7 +162,7 @@ class TestAsync:
 
         reply = stats_event.content['message']
         event_switch = stats_event.source.switch
-        await napp._handle_multipart_reply(reply, event_switch)
+        await self.napp._handle_multipart_reply(reply, event_switch)
 
         ex_switch = 'kytos/of_core.switch.port.created'
         ex_interface = 'kytos/of_core.switch.interface.created'
@@ -152,8 +170,8 @@ class TestAsync:
         ex_port = 7
         
         for i in range(0, 2):
-            of_event_01 = await napp.controller.buffers.app.aget()
-            of_event_02 = await napp.controller.buffers.app.aget()
+            of_event_01 = await self.napp.controller.buffers.app.aget()
+            of_event_02 = await self.napp.controller.buffers.app.aget()
             assert of_event_01.name == ex_switch
             assert of_event_01.content['switch'] == ex_dpid
             assert of_event_01.content['port'] == ex_port - i
@@ -161,13 +179,13 @@ class TestAsync:
             assert getattr(of_event_02.content['interface'],
                            'port_number') == ex_port - i
 
-        of_event_01 = await napp.controller.buffers.app.aget()
+        of_event_01 = await self.napp.controller.buffers.app.aget()
         assert of_event_01.name == 'kytos/of_core.switch.interfaces.created'
         assert len(of_event_01.content['interfaces']) == 2
 
         for i in range(0, 2):
-            of_event_01 = await napp.controller.buffers.app.aget()
-            of_event_02 = await napp.controller.buffers.app.aget()
+            of_event_01 = await self.napp.controller.buffers.app.aget()
+            of_event_02 = await self.napp.controller.buffers.app.aget()
             assert of_event_01.name == ex_switch
             assert of_event_01.content['switch'] == ex_dpid
             assert of_event_01.content['port'] == ex_port - i
@@ -175,9 +193,65 @@ class TestAsync:
             assert getattr(of_event_02.content['interface'],
                            'port_number') == ex_port - i
 
-        of_event_01 = await napp.controller.buffers.app.aget()
+        of_event_01 = await self.napp.controller.buffers.app.aget()
         assert of_event_01.name == 'kytos/of_core.switch.interfaces.created'
         assert len(of_event_01.content['interfaces']) == 2
+
+    async def test_handle_multipart_reply(self):
+        """Test handling ofpt_multipart_reply."""
+        event_name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
+        switch = get_switch_mock("00:00:00:00:00:00:00:02")
+        switch.connection = get_connection_mock(
+            0x04, get_switch_mock("00:00:00:00:00:00:00:01"),
+            ConnectionState.ESTABLISHED)
+
+        self.napp.controller.get_switch_or_create(switch.dpid,
+                                                  switch.connection)
+
+        data = b'\x04\x13\x00\x68\xac\xc8\xdf\x58\x00\x01\x00\x00\x00\x00\x00'
+        data += b'\x00\x00\x58\x00\x00\x00\x00\x00\x38\x25\xd9\x54\xc0\x03\xe8'
+        data += b'\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00\x00'
+        data += b'\x00\x00\x02\xf4\x00\x01\x00\x10\x80\x00\x0a\x02\x88\xcc\x80'
+        data += b'\x00\x0c\x02\x1e\xd7\x00\x04\x00\x18\x00\x00\x00\x00\x00\x00'
+        data += b'\x00\x10\xff\xff\xff\xfd\xff\xff\x00\x00\x00\x00\x00\x00'
+
+        # pylint: disable=protected-access
+        xid = self.napp._multipart_replies_xids[switch.dpid]
+        # pylint: enable=protected-access
+        multipart_reply = MultipartReply(xid=xid)
+        multipart_reply.unpack(data[8:])
+        stats_event = KytosEvent(name=event_name,
+                                 content={'source': switch.connection,
+                                          'message': multipart_reply})
+        reply = stats_event.content['message']
+        event_switch = stats_event.source.switch
+        await self.napp._handle_multipart_reply(reply, event_switch)
+
+        # test ofpmp_desc
+        data = b'\x04\x12\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data += b'\x00'
+        multipart_desc = MultipartReply()
+        multipart_desc.unpack(data[8:])
+        stats_desc_event = KytosEvent(name=event_name,
+                                      content={'source': switch.connection,
+                                               'message': multipart_desc})
+
+        target_switch = switch.connection.switch
+        reply = stats_desc_event.content['message']
+        event_switch = stats_desc_event.source.switch
+        await self.napp._handle_multipart_reply(reply, event_switch)
+        # pylint: disable=protected-access
+        print(xid, " <-xid")
+        print(self.napp._multipart_replies_xids, " <-replies_xids")
+        #self.assertNotIn(xid, self.napp._multipart_replies_xids)
+        assert (len(target_switch.flows) > 0)
+        assert multipart_desc.body.mfr_desc.value == target_switch.description["manufacturer"]
+        assert multipart_desc.body.hw_desc.value == target_switch.description["hardware"]
+        assert multipart_desc.body.sw_desc.value == target_switch.description["software"]
+        assert multipart_desc.body.serial_num.value == target_switch.description["serial"]
+        assert multipart_desc.body.dp_desc.value == target_switch.description["data_path"]
+
 
 class TestMain(TestCase):
     """Class to Integration test kytos/of_core main."""
@@ -214,32 +288,6 @@ class TestMain(TestCase):
         actual_events = self.napp.listeners()
         for _event in expected_events:
             self.assertIn(_event, actual_events, str(_event))
-
-    def test_execute(self):
-        """Test 'execute' main method."""
-        dpid_01 = "00:00:00:00:00:00:00:01"
-        dpid_02 = "00:00:00:00:00:00:00:02"
-        sw_01 = get_switch_mock()
-        sw_01.connection = get_connection_mock(
-            0x01, get_switch_mock(dpid_02), ConnectionState.ESTABLISHED)
-        sw_04 = get_switch_mock(dpid_02)
-        sw_04.connection = get_connection_mock(
-            0x04, get_switch_mock(dpid_01), ConnectionState.ESTABLISHED)
-
-        self.napp.controller.get_switch_or_create(dpid_01, sw_01.connection)
-        self.napp.controller.get_switch_or_create(dpid_02, sw_04.connection)
-        self.napp.execute()
-        expected = [
-            'kytos/of_core.v0x01.messages.out.ofpt_stats_request',
-            'kytos/of_core.v0x01.messages.out.ofpt_echo_request',
-            'kytos/of_core.v0x04.messages.out.ofpt_multipart_request',
-            'kytos/of_core.v0x04.messages.out.ofpt_echo_request'
-        ]
-        """
-        for message in expected:
-            of_event = self.napp.controller.buffers.msg_out.get()  # Hanging
-            self.assertEqual(of_event.name, message)
-        """
 
     def test_handle_04_features_reply(self):
         """Test handling features reply message."""
@@ -315,62 +363,6 @@ class TestMain(TestCase):
         of_event = self.napp.controller.buffers.msg_out.get()
         self.assertEqual(of_event.name,
                          'kytos/of_core.v0x04.messages.out.ofpt_echo_reply')
-
-    def test_handle_multipart_reply(self):
-        """Test handling ofpt_multipart_reply."""
-        event_name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
-        switch = get_switch_mock("00:00:00:00:00:00:00:02")
-        switch.connection = get_connection_mock(
-            0x04, get_switch_mock("00:00:00:00:00:00:00:01"),
-            ConnectionState.ESTABLISHED)
-
-        self.napp.controller.get_switch_or_create(switch.dpid,
-                                                  switch.connection)
-
-        data = b'\x04\x13\x00\x68\xac\xc8\xdf\x58\x00\x01\x00\x00\x00\x00\x00'
-        data += b'\x00\x00\x58\x00\x00\x00\x00\x00\x38\x25\xd9\x54\xc0\x03\xe8'
-        data += b'\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00\x00'
-        data += b'\x00\x00\x02\xf4\x00\x01\x00\x10\x80\x00\x0a\x02\x88\xcc\x80'
-        data += b'\x00\x0c\x02\x1e\xd7\x00\x04\x00\x18\x00\x00\x00\x00\x00\x00'
-        data += b'\x00\x10\xff\xff\xff\xfd\xff\xff\x00\x00\x00\x00\x00\x00'
-
-        # pylint: disable=protected-access
-        xid = self.napp._multipart_replies_xids[switch.dpid]  # Empty
-        # pylint: enable=protected-access
-        multipart_reply = MultipartReply(xid=xid)
-        multipart_reply.unpack(data[8:])
-        stats_event = KytosEvent(name=event_name,
-                                 content={'source': switch.connection,
-                                          'message': multipart_reply})
-
-        self.napp.handle_multipart_reply(stats_event)
-
-        # test ofpmp_desc
-        data = b'\x04\x12\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data += b'\x00'
-        multipart_desc = MultipartReply()
-        multipart_desc.unpack(data[8:])
-        stats_desc_event = KytosEvent(name=event_name,
-                                      content={'source': switch.connection,
-                                               'message': multipart_desc})
-
-        target_switch = switch.connection.switch
-        self.napp.handle_multipart_reply(stats_desc_event)
-        # pylint: disable=protected-access
-        self.assertNotIn(xid, self.napp._multipart_replies_xids)
-        # pylint: enable=protected-access
-        self.assertGreater(len(target_switch.flows), 0)
-        self.assertEqual(multipart_desc.body.mfr_desc.value,
-                         target_switch.description["manufacturer"])
-        self.assertEqual(multipart_desc.body.hw_desc.value,
-                         target_switch.description["hardware"])
-        self.assertEqual(multipart_desc.body.sw_desc.value,
-                         target_switch.description["software"])
-        self.assertEqual(multipart_desc.body.serial_num.value,
-                         target_switch.description["serial"])
-        self.assertEqual(multipart_desc.body.dp_desc.value,
-                         target_switch.description["data_path"])
 
     def test_pack_generic_hello(self):
         """Test packing a generic hello message."""
