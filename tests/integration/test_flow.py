@@ -1,12 +1,10 @@
 """Tests for high-level Flow of OpenFlow 1.3."""
 import unittest
-from unittest.mock import MagicMock
 
 from pyof.v0x04.controller2switch.flow_mod import FlowMod as OFFlow04
 
 from kytos.core.switch import Switch
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
-from kytos.core import log
 
 
 class TestFlow(unittest.TestCase):

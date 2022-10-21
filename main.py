@@ -160,17 +160,13 @@ class Main(KytosNApp):
     async def _handle_multipart_reply(self, reply, switch):
         """Handle multipart replies for v0x04 switches."""
         if reply.multipart_type == MultipartType.OFPMP_FLOW:
-            print('flow')
             await self._handle_multipart_flow_stats(reply, switch)
         elif reply.multipart_type == MultipartType.OFPMP_PORT_STATS:
-            print('port')
             await self._handle_multipart_port_stats(reply, switch)
         elif reply.multipart_type == MultipartType.OFPMP_PORT_DESC:
-            print('port desc')
             await of_core_v0x04_utils.handle_port_desc(self.controller, switch,
                                                        reply.body)
         elif reply.multipart_type == MultipartType.OFPMP_DESC:
-            print('desc')
             switch.update_description(reply.body)
 
     async def _handle_multipart_flow_stats(self, reply, switch):
@@ -178,15 +174,12 @@ class Main(KytosNApp):
 
         Returns true if no more replies are expected.
         """
-        print(self._multipart_replies_xids[switch.id].get('flows'), ' xids flow')
-        print(reply.header.xid, ' reply')
         if self._is_multipart_reply_ours(reply, switch, 'flows'):
             # Get all flows from the reply and extend the multipar flows list
             flows = [Flow04.from_of_flow_stats(of_flow_stats, switch)
                      for of_flow_stats in reply.body]
             self._multipart_replies_flows[switch.id].extend(flows)
             xid = int(reply.header.xid)
-            print(self._multipart_replies_flows[switch.id], " populate")
             if reply.flags.value % 2 == 0:  # Last bit means more replies
                 try:
                     replies_flows = [
