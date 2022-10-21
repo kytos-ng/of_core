@@ -92,22 +92,6 @@ class TestFlow(TestCase):
             'vlan_id': 6
         }]
     }
-    expected_10 = {
-        'switch': mock_switch.id,
-        'table_id': 1,
-        'match': {
-            'dl_src': '11:22:33:44:55:66'
-        },
-        'priority': 2,
-        'idle_timeout': 3,
-        'hard_timeout': 4,
-        'cookie': 5,
-        'actions': [{
-            'action_type': 'set_vlan',
-            'vlan_id': 6
-        }],
-        'stats': {}
-    }
     expected_13 = {
         'switch': mock_switch.id,
         'table_id': 1,

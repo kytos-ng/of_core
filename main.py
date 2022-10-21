@@ -174,14 +174,12 @@ class Main(KytosNApp):
 
         Returns true if no more replies are expected.
         """
-
         if self._is_multipart_reply_ours(reply, switch, 'flows'):
             # Get all flows from the reply and extend the multipar flows list
             flows = [Flow04.from_of_flow_stats(of_flow_stats, switch)
                      for of_flow_stats in reply.body]
             self._multipart_replies_flows[switch.id].extend(flows)
             xid = int(reply.header.xid)
-
             if reply.flags.value % 2 == 0:  # Last bit means more replies
                 try:
                     replies_flows = [

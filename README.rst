@@ -49,7 +49,6 @@ Subscribed
 
 - ``kytos/core.openflow.raw.in``
 - ``kytos/of_core.v0x04.messages.in.ofpt_features_reply``
-- ``kytos/of_core.v0x04.messages.in.ofpt_multipart_reply``
 - ``kytos/of_core.v0x04.messages.in.ofpt_echo_request``
 - ``kytos/of_core.v0x04.messages.out.ofpt_echo_reply``
 - ``kytos/of_core.v0x04.messages.out.ofpt_features_request``
