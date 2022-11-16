@@ -1,7 +1,9 @@
 """Deal with OpenFlow 1.3 specificities related to flows."""
 from itertools import chain
+from typing import Callable, Optional, Type
 
 from pyof.foundation.network_types import EtherType
+from pyof.v0x04.common.action import ActionExperimenter
 from pyof.v0x04.common.action import ActionOutput as OFActionOutput
 from pyof.v0x04.common.action import ActionPopVLAN as OFActionPopVLAN
 from pyof.v0x04.common.action import ActionPush as OFActionPush
@@ -191,6 +193,9 @@ class Action(ActionFactoryBase):
         OFActionSetQueue: ActionSetQueue
     }
 
+    # experimenter int value to pyof classes to unpack from bytes
+    _experimenter_classes = {}
+
     @classmethod
     def add_action_class(cls, class_name, new_class):
         """Add a new action.
@@ -198,6 +203,19 @@ class Action(ActionFactoryBase):
         To be used by modules implementing Experimenter Actions.
         """
         cls._action_class[class_name] = new_class
+
+    @classmethod
+    def add_experimenter_classes(
+        cls, experimenter: int,
+        func: Callable[[bytes], Optional[Type[ActionExperimenter]]]
+    ):
+        """Add a callable that take bytes to map to Experimenter Actions."""
+        cls._experimenter_classes[int(experimenter)] = func
+
+    @classmethod
+    def get_experimenter_class(cls, experimenter: int, body: bytes):
+        """Get Experimenter class."""
+        return cls._experimenter_classes[int(experimenter)](body)
 
 
 class InstructionAction(InstructionBase):
@@ -214,14 +232,19 @@ class InstructionAction(InstructionBase):
     def as_dict(self):
         instruction_dict = {'instruction_type': self.instruction_type}
         instruction_dict['actions'] = [action.as_dict()
-                                       for action in self.actions]
+                                       for action in self.actions if action]
         return instruction_dict
 
     @classmethod
     def from_of_instruction(cls, of_instruction):
         """Create high-level Instruction from pyof Instruction."""
-        actions = [Action.from_of_action(of_action)
-                   for of_action in of_instruction.actions]
+        actions = []
+        for of_action in of_instruction.actions:
+            klass = Action
+            if isinstance(of_action, ActionExperimenter):
+                klass = Action.get_experimenter_class(of_action.experimenter,
+                                                      of_action.body.pack())
+            actions.append(klass.from_of_action(of_action))
         return cls(actions)
 
     def as_of_instruction(self):

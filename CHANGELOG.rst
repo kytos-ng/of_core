@@ -21,6 +21,7 @@ Removed
 
 Fixed
 =====
+- Augmented ``InstructionAction.from_of_instruction`` to support deserializing ActionExperimenter from ``FlowStats`` entries.
 
 Security
 ========
