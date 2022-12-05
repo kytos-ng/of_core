@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, PropertyMock, create_autospec, patch
 
 import pytest
 from pyof.foundation.network_types import Ethernet
+from pyof.v0x04.common.port import PortState
 from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core.connection import ConnectionState
@@ -607,13 +608,19 @@ class TestMain(TestCase):
     def test_update_port_status(self, *args):
         """Test update_port_status."""
         (mock_port_mod, mock_interface, mock_buffer_put) = args
+        mock_intf = MagicMock()
+        mock_interface.return_value = mock_intf
         mock_port_status = MagicMock()
         mock_source = MagicMock()
+        mock_port = MagicMock()
+        mock_port.state.value = PortState.OFPPS_LIVE
 
         mock_port_status.reason.value.side_effect = [0, 1, 2]
         mock_port_status.reason.enum_ref(0).name = 'OFPPR_ADD'
+        mock_port_status.desc = mock_port
         self.napp.update_port_status(mock_port_status, mock_source)
         mock_interface.assert_called()
+        assert mock_intf.activate.call_count == 1
 
         # check OFPRR_MODIFY
         mock_port_status.reason.enum_ref(1).name = 'OFPPR_MODIFY'
@@ -621,6 +628,7 @@ class TestMain(TestCase):
         self.napp.update_port_status(mock_port_status, mock_source)
         mock_port_mod.assert_called()
         mock_buffer_put.assert_called()
+        assert mock_intf.activate.call_count == 2
 
         mock_source.switch.get_interface_by_port_no.return_value = MagicMock()
         self.napp.update_port_status(mock_port_status, mock_source)
