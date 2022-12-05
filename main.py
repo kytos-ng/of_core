@@ -21,6 +21,7 @@ from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
                                        of_slicer)
 from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
+from napps.kytos.of_core.v0x04.utils import try_to_activate_interface
 
 
 class Main(KytosNApp):
@@ -589,6 +590,7 @@ class Main(KytosNApp):
                                   state=port.state.value,
                                   features=port.curr)
             source.switch.update_interface(interface)
+            try_to_activate_interface(interface, port)
 
         elif reason == 'OFPPR_MODIFY':
             status = 'modified'
@@ -611,6 +613,7 @@ class Main(KytosNApp):
                                       state=port.state.value,
                                       features=port.curr)
             source.switch.update_interface(interface)
+            try_to_activate_interface(interface, port)
             self._send_specific_port_mod(port, interface, current_status)
 
         elif reason == 'OFPPR_DELETE':
