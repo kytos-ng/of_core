@@ -22,6 +22,7 @@ Removed
 Fixed
 =====
 - Augmented ``InstructionAction.from_of_instruction`` to support deserializing ActionExperimenter from ``FlowStats`` entries.
+- ``OFPPS_LIVE`` is now considered when handling port description and port status
 
 Security
 ========
