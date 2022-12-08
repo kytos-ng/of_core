@@ -491,6 +491,25 @@ class Main(KytosNApp):
         event.destination.close()
         log.debug("Connection %s: Connection closed.", event.destination.id)
 
+    @alisten_to(".*.connection.lost")
+    async def on_connection_lost(self, event) -> None:
+        """On connection_lost event."""
+        switch = event.content["source"].switch
+        if not switch:
+            return
+        self.pop_multipart_replies(switch)
+
+    def pop_multipart_replies(self, switch) -> None:
+        """Pop multipart replies."""
+        self._multipart_replies_xids.pop(switch.id, None)
+        self._multipart_replies_flows.pop(switch.id, None)
+        self._multipart_replies_ports.pop(switch.id, None)
+
+    @alisten_to("kytos/core.openflow.connection.error")
+    async def on_openflow_connection_error(self, event):
+        """On openflow connection error try to pop multipart replies."""
+        self.pop_multipart_replies(event.content["destination"].switch)
+
     def shutdown(self):
         """End of the application."""
         log.debug('Shutting down...')
