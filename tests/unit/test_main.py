@@ -316,6 +316,39 @@ class TestNApp:
         await napp.aemit_message_out(mock_connection, mock_message)
         mock_aemit_message_out.assert_called()
 
+    async def test_on_connection_lost(self, napp) -> None:
+        """Test on_connection_lost."""
+        dpid = "1"
+        event, switch = MagicMock(), MagicMock(id=dpid)
+        event.content["source"].switch = switch
+        napp._multipart_replies_xids[dpid] = {"flows": 2, "ports": 3}
+        napp._multipart_replies_flows[dpid] = [MagicMock()]
+        napp._multipart_replies_ports[dpid] = [MagicMock()]
+        await napp.on_connection_lost(event)
+        assert dpid not in napp._multipart_replies_xids
+        assert dpid not in napp._multipart_replies_flows
+        assert dpid not in napp._multipart_replies_ports
+
+        # To also cover the early return
+        event = MagicMock()
+        event.content["source"].switch = None
+        napp.pop_multipart_replies = MagicMock()
+        await napp.on_connection_lost(event)
+        napp.pop_multipart_replies.assert_not_called()
+
+    async def test_on_openflow_connection_error(self, napp) -> None:
+        """Test on_openflow_connection_error."""
+        dpid = "1"
+        event, switch = MagicMock(), MagicMock(id=dpid)
+        event.content["destination"].switch = switch
+        napp._multipart_replies_xids[dpid] = {"flows": 2, "ports": 3}
+        napp._multipart_replies_flows[dpid] = [MagicMock()]
+        napp._multipart_replies_ports[dpid] = [MagicMock()]
+        await napp.on_openflow_connection_error(event)
+        assert dpid not in napp._multipart_replies_xids
+        assert dpid not in napp._multipart_replies_flows
+        assert dpid not in napp._multipart_replies_ports
+
 
 class TestMain(TestCase):
     """Test the Main class."""
