@@ -23,6 +23,7 @@ Fixed
 =====
 - Augmented ``InstructionAction.from_of_instruction`` to support deserializing ActionExperimenter from ``FlowStats`` entries.
 - ``OFPPS_LIVE`` is now considered when handling port description and port status
+- Subscribed to ``.*.connection.lost`` and ``kytos/core.openflow.connection.error`` to be able to reset multipart replies
 
 Security
 ========
