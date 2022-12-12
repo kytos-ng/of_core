@@ -1,6 +1,6 @@
 """Utilities module for of_core OpenFlow v0x04 operations."""
 from pyof.v0x04.common.action import ControllerMaxLen
-from pyof.v0x04.common.port import PortConfig
+from pyof.v0x04.common.port import PortConfig, PortNo, PortState
 from pyof.v0x04.controller2switch.common import ConfigFlag, MultipartType
 from pyof.v0x04.controller2switch.multipart_request import (FlowStatsRequest,
                                                             MultipartRequest,
@@ -11,6 +11,18 @@ from pyof.v0x04.symmetric.hello import Hello
 
 from kytos.core.events import KytosEvent
 from napps.kytos.of_core.utils import aemit_message_out, emit_message_out
+
+
+def try_to_activate_interface(interface, port):
+    """Try activate or deactivate an interface given a port state."""
+    if any((
+        port.state.value == PortState.OFPPS_LIVE,
+        port.port_no.value == PortNo.OFPP_LOCAL.value
+    )):
+        interface.activate()
+    else:
+        interface.deactivate()
+    return interface
 
 
 def update_flow_list(controller, switch):
@@ -115,6 +127,7 @@ async def handle_port_desc(controller, switch, port_list):
                         features=port.curr,
                         config=config,
                         speed=port.curr_speed.value)
+        try_to_activate_interface(interface, port)
         interfaces.append(interface)
 
         event_name = 'kytos/of_core.switch.interface.created'
