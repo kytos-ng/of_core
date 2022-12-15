@@ -6,14 +6,8 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
-Added
-=====
-
-Changed
-=======
-
-Deprecated
-==========
+[2022.3.0] - 2022-12-15
+***********************
 
 Removed
 =======
@@ -24,9 +18,6 @@ Fixed
 - Augmented ``InstructionAction.from_of_instruction`` to support deserializing ActionExperimenter from ``FlowStats`` entries.
 - ``OFPPS_LIVE`` is now considered when handling port description and port status
 - Subscribed to ``.*.connection.lost`` and ``kytos/core.openflow.connection.error`` to be able to reset multipart replies
-
-Security
-========
 
 [2022.2.1] - 2022-08-15
 ***********************
