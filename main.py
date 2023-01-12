@@ -644,7 +644,9 @@ class Main(KytosNApp):
         event = KytosEvent(name=event_name, content=content)
         self.controller.buffers.app.put(event)
 
-        state_desc = {v:k for k,v in PortState._enum.items()}
+        # pylint: disable=protected-access
+        state_desc = {v: k for k, v in PortState._enum.items()}
+        # pylint: enable=protected-access
         state = state_desc.get(port.state.value, port.state.value)
         msg = 'PortStatus %s interface %s:%s state %s'
         log.info(msg, status, source.switch.id, port_no, state)
