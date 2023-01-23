@@ -8,6 +8,7 @@ from pyof.foundation.exceptions import UnpackException
 from pyof.foundation.network_types import Ethernet, EtherType
 from pyof.utils import PYOF_VERSION_LIBS, unpack
 from pyof.v0x04.common.header import Type
+from pyof.v0x04.common.port import PortState
 from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core import KytosEvent, KytosNApp, log
@@ -616,9 +617,6 @@ class Main(KytosNApp):
             interface = source.switch.get_interface_by_port_no(port_no)
             current_status = None
             if interface:
-                dpid = interface.switch.dpid
-                port_number = interface.port_number
-                log.info(f"Modified {interface} {dpid}:{port_number}")
                 current_status = interface.state
                 interface.state = port.state.value
                 interface.name = port.name.value
@@ -646,8 +644,12 @@ class Main(KytosNApp):
         event = KytosEvent(name=event_name, content=content)
         self.controller.buffers.app.put(event)
 
-        msg = 'The port %s from switch %s was %s.'
-        log.debug(msg, port_status.desc.port_no, source.switch.id, status)
+        # pylint: disable=protected-access
+        state_desc = {v: k for k, v in PortState._enum.items()}
+        # pylint: enable=protected-access
+        state = state_desc.get(port.state.value, port.state.value)
+        msg = 'PortStatus %s interface %s:%s state %s'
+        log.info(msg, status, source.switch.id, port_no, state)
 
 
 def _get_version_from_bitmask(message_versions):
