@@ -39,10 +39,16 @@ class MatchDLVLAN(MatchField):
             value = int(self.value)
             mask = None
             oxm_hasmask = False
+            value = value | VlanId.OFPVID_PRESENT
         except ValueError:
-            value, mask = map(int, self.value.split('/'))
-            oxm_hasmask = True
-        value = value | VlanId.OFPVID_PRESENT
+            try:
+                value, mask = map(int, self.value.split('/'))
+                oxm_hasmask = True
+                value = value | VlanId.OFPVID_PRESENT
+            except ValueError:
+                mask = None
+                oxm_hasmask = False
+                value = VlanId.OFPVID_NONE
         value_bytes = value.to_bytes(2, 'big')
         if mask:
             mask = mask | VlanId.OFPVID_PRESENT
