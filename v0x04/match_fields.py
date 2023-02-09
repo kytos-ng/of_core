@@ -37,14 +37,14 @@ class MatchDLVLAN(MatchField):
         """Return a pyof OXM TLV instance."""
         try:
             value = int(self.value)
-            value = value | VlanId.OFPVID_PRESENT
-            if value == 0:
-                value = VlanId.OFPVID_NONE
             mask = None
             oxm_hasmask = False
         except ValueError:
             value, mask = map(int, self.value.split('/'))
             oxm_hasmask = True
+        if value == 0:
+            value = VlanId.OFPVID_NONE
+        else:
             value = value | VlanId.OFPVID_PRESENT
         value_bytes = value.to_bytes(2, 'big')
         if mask:
