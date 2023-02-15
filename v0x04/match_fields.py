@@ -59,7 +59,7 @@ class MatchDLVLAN(MatchField):
         """Return an instance from a pyof OXM TLV."""
         vlan_id = int.from_bytes(tlv.oxm_value[:2], 'big')
         if vlan_id != 4096:
-            vlan_id &=  4095
+            vlan_id &= 4095
         value = vlan_id
         if tlv.oxm_hasmask:
             vlan_mask = int.from_bytes(tlv.oxm_value[2:], 'big')
