@@ -20,3 +20,17 @@ class TestMatch(unittest.TestCase):
         of_tlv = expected.as_of_tlv()
         actual = MatchDLVLAN.from_of_tlv(of_tlv)
         self.assertEqual(expected, actual)
+
+    def test_dl_vlan_mask_pyof(self):
+        """Convert to and from pyog OxmTLV with mask"""
+        expected = MatchDLVLAN("4096/4096")
+        of_tlv = expected.as_of_tlv()
+        actual = MatchDLVLAN.from_of_tlv(of_tlv)
+        self.assertEqual(expected, actual)
+
+    def test_dl_vlan_zero_pyof(self):
+        """Convert to and from pyog OxmTLV with 0"""
+        expected = MatchDLVLAN(0)
+        of_tlv = expected.as_of_tlv()
+        actual = MatchDLVLAN.from_of_tlv(of_tlv)
+        self.assertEqual(expected, actual)
