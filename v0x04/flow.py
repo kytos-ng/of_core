@@ -212,11 +212,6 @@ class Action(ActionFactoryBase):
         """Add a callable that take bytes to map to Experimenter Actions."""
         cls._experimenter_classes[int(experimenter)] = func
 
-    @classmethod
-    def get_experimenter_class(cls, experimenter: int, body: bytes):
-        """Get Experimenter class."""
-        return cls._experimenter_classes[int(experimenter)](body)
-
 
 class InstructionAction(InstructionBase):
     """Base class for instruction dealing with actions."""
@@ -238,13 +233,8 @@ class InstructionAction(InstructionBase):
     @classmethod
     def from_of_instruction(cls, of_instruction):
         """Create high-level Instruction from pyof Instruction."""
-        actions = []
-        for of_action in of_instruction.actions:
-            klass = Action
-            if isinstance(of_action, ActionExperimenter):
-                klass = Action.get_experimenter_class(of_action.experimenter,
-                                                      of_action.body.pack())
-            actions.append(klass.from_of_action(of_action))
+        actions = [Action.from_of_action(of_action)
+                   for of_action in of_instruction.actions]
         return cls(actions)
 
     def as_of_instruction(self):
