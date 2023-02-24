@@ -6,6 +6,14 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2022.3.1] - 2023-02-23
+***********************
+
+Fixed
+=====
+
+- ``from_of_instruction`` experimenter class deserialization shouldn't use ``pyof ActionExperimenter.body``
+
 [2022.3.0] - 2022-12-15
 ***********************
 
