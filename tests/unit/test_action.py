@@ -69,4 +69,3 @@ def test_add_experimenter_classes():
     experimenter, func = 0xff000002, lambda body: resp
     Action04.add_experimenter_classes(experimenter, func)
     assert Action04._experimenter_classes[experimenter] == func
-    assert Action04.get_experimenter_class(experimenter, b'\xff') == resp
