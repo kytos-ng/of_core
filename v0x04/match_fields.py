@@ -56,14 +56,19 @@ class MatchDLVLAN(MatchField):
 
     @classmethod
     def from_of_tlv(cls, tlv):
-        """Return an instance from a pyof OXM TLV."""
+        """Return an instance from a pyof OXM TLV.
+        *oxm_value=0x1000/0x1000 is a valid case. It's necessary to
+        deserialize 0x1000 as 4096 thus it is ignore to not obtain 0
+        """
         vlan_id = int.from_bytes(tlv.oxm_value[:2], 'big')
         if vlan_id != 4096:
+            # Ignore 4096
             vlan_id &= 4095
         value = vlan_id
         if tlv.oxm_hasmask:
             vlan_mask = int.from_bytes(tlv.oxm_value[2:], 'big')
             if vlan_mask != 4096:
+                # Ignore 4096
                 vlan_mask &= 4095
             value = f'{vlan_id}/{vlan_mask}'
         return cls(value)
