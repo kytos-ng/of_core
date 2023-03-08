@@ -8,7 +8,7 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Changed
 =======
-- ``MatchDLVLAN`` can handle values such as ``4096/4096`` and 0
+- ``MatchDLVLAN`` can handle values such as ``"4096/4096"`` and 0
 
 
 [2022.3.1] - 2023-02-23
