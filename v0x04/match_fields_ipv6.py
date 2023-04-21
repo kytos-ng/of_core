@@ -1,10 +1,9 @@
 """IPv6 Match Fields."""
 
-from pyof.foundation.basic_types import IPv6Address
-from pyof.v0x04.common.flow_match import OxmOfbMatchField, OxmTLV
-
 from napps.kytos.of_core.v0x04.match_fields_base import MatchField
 from napps.kytos.of_core.v0x04.utils import bytes_to_mask, mask_to_bytes
+from pyof.foundation.basic_types import IPv6Address
+from pyof.v0x04.common.flow_match import OxmOfbMatchField, OxmTLV
 
 
 class MatchIPv6Src(MatchField):

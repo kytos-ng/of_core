@@ -2,6 +2,11 @@
 from itertools import chain
 from typing import Callable, Optional, Type
 
+from napps.kytos.of_core.flow import (ActionBase, ActionFactoryBase, FlowBase,
+                                      FlowStats, InstructionBase,
+                                      InstructionFactoryBase, MatchBase,
+                                      PortStats)
+from napps.kytos.of_core.v0x04.match_fields import MatchFieldFactory
 from pyof.foundation.network_types import EtherType
 from pyof.v0x04.common.action import ActionExperimenter
 from pyof.v0x04.common.action import ActionOutput as OFActionOutput
@@ -27,12 +32,6 @@ from pyof.v0x04.common.flow_match import Match as OFMatch
 from pyof.v0x04.common.flow_match import (OxmMatchFields, OxmOfbMatchField,
                                           OxmTLV, VlanId)
 from pyof.v0x04.controller2switch.flow_mod import FlowMod
-
-from napps.kytos.of_core.flow import (ActionBase, ActionFactoryBase, FlowBase,
-                                      FlowStats, InstructionBase,
-                                      InstructionFactoryBase, MatchBase,
-                                      PortStats)
-from napps.kytos.of_core.v0x04.match_fields import MatchFieldFactory
 
 __all__ = ('ActionOutput', 'ActionSetVlan', 'ActionSetQueue', 'ActionPushVlan',
            'ActionPopVlan', 'Action', 'Flow', 'FlowStats', 'PortStats')

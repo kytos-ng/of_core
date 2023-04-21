@@ -4,6 +4,14 @@ import asyncio
 import time
 from collections import defaultdict
 
+from napps.kytos.of_core import settings
+from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
+                                       aemit_message_in, aemit_message_out,
+                                       emit_message_in, emit_message_out,
+                                       of_slicer)
+from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
+from napps.kytos.of_core.v0x04.flow import Flow as Flow04
+from napps.kytos.of_core.v0x04.utils import try_to_activate_interface
 from pyof.foundation.exceptions import UnpackException
 from pyof.foundation.network_types import Ethernet, EtherType
 from pyof.utils import PYOF_VERSION_LIBS, unpack
@@ -15,14 +23,6 @@ from kytos.core import KytosEvent, KytosNApp, log
 from kytos.core.connection import ConnectionState
 from kytos.core.helpers import alisten_to, listen_to, run_on_thread
 from kytos.core.interface import Interface
-from napps.kytos.of_core import settings
-from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
-                                       aemit_message_in, aemit_message_out,
-                                       emit_message_in, emit_message_out,
-                                       of_slicer)
-from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
-from napps.kytos.of_core.v0x04.flow import Flow as Flow04
-from napps.kytos.of_core.v0x04.utils import try_to_activate_interface
 
 
 class Main(KytosNApp):
