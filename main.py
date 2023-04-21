@@ -510,7 +510,10 @@ class Main(KytosNApp):
     @alisten_to("kytos/core.openflow.connection.error")
     async def on_openflow_connection_error(self, event):
         """On openflow connection error try to pop multipart replies."""
-        self.pop_multipart_replies(event.content["destination"].switch)
+        switch = event.content["destination"].switch
+        if not switch:
+            return
+        self.pop_multipart_replies(switch)
 
     def shutdown(self):
         """End of the application."""

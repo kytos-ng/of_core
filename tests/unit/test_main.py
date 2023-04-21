@@ -350,6 +350,14 @@ class TestNApp:
         assert dpid not in napp._multipart_replies_flows
         assert dpid not in napp._multipart_replies_ports
 
+    async def test_on_openflow_connection_error_no_sw(self, napp) -> None:
+        """Test on_openflow_connection_error no switch."""
+        event = MagicMock()
+        napp.pop_multipart_replies = MagicMock()
+        event.content["destination"].switch = None
+        await napp.on_openflow_connection_error(event)
+        assert napp.pop_multipart_replies.call_count == 0
+
 
 class TestMain(TestCase):
     """Test the Main class."""

@@ -18,6 +18,7 @@ Fixed
 =====
 
 - ``from_of_instruction`` experimenter class deserialization shouldn't use ``pyof ActionExperimenter.body``
+- Gracefully handled ``kytos/core.openflow.connection.error`` when a switch hasn't been created yet
 
 [2022.3.0] - 2022-12-15
 ***********************
