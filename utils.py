@@ -3,12 +3,12 @@
 import struct
 from collections import OrderedDict
 
+from napps.kytos.of_core import settings
+from napps.kytos.of_core.msg_prios import of_msg_prio
 from pyof.foundation.exceptions import PackException, UnpackException
 from pyof.v0x04.common.header import Type as OFPTYPE
 
 from kytos.core import KytosEvent
-from napps.kytos.of_core import settings
-from napps.kytos.of_core.msg_prios import of_msg_prio
 
 
 def of_slicer(remaining_data):

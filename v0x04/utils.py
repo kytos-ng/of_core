@@ -1,4 +1,5 @@
 """Utilities module for of_core OpenFlow v0x04 operations."""
+from napps.kytos.of_core.utils import aemit_message_out, emit_message_out
 from pyof.v0x04.common.action import ControllerMaxLen
 from pyof.v0x04.common.port import PortConfig, PortNo, PortState
 from pyof.v0x04.controller2switch.common import ConfigFlag, MultipartType
@@ -10,7 +11,6 @@ from pyof.v0x04.symmetric.echo_request import EchoRequest
 from pyof.v0x04.symmetric.hello import Hello
 
 from kytos.core.events import KytosEvent
-from napps.kytos.of_core.utils import aemit_message_out, emit_message_out
 
 
 def try_to_activate_interface(interface, port):

@@ -8,9 +8,6 @@ This module provides high-level Python classes for OXM TLV fields in order to
 make the OF 1.3 match fields easy to use and to be coded.
 """
 
-from pyof.foundation.basic_types import HWAddress, IPAddress
-from pyof.v0x04.common.flow_match import OxmOfbMatchField, OxmTLV, VlanId
-
 # pylint: disable=unused-import
 from napps.kytos.of_core.v0x04.match_fields_base import (MatchField,
                                                          MatchFieldFactory)
@@ -25,6 +22,8 @@ from napps.kytos.of_core.v0x04.match_fields_ipv6 import (MatchEXTHDR,
                                                          MatchNDTLL)
 # pylint: enable=unused-import
 from napps.kytos.of_core.v0x04.utils import bytes_to_mask, mask_to_bytes
+from pyof.foundation.basic_types import HWAddress, IPAddress
+from pyof.v0x04.common.flow_match import OxmOfbMatchField, OxmTLV, VlanId
 
 
 class MatchDLVLAN(MatchField):

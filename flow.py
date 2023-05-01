@@ -8,9 +8,8 @@ import json
 from abc import ABC, abstractmethod
 from hashlib import md5
 
-from pyof.v0x04.controller2switch.flow_mod import FlowModCommand
-
 from napps.kytos.of_core import v0x04
+from pyof.v0x04.controller2switch.flow_mod import FlowModCommand
 
 
 class FlowFactory(ABC):  # pylint: disable=too-few-public-methods

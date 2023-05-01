@@ -397,16 +397,14 @@ class TestMain(TestCase):
 
         # Case 1: skipped due to delayed flow stats
         self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC}}
-        self.assertTrue(self.napp._check_overlapping_multipart_request(
-                                        mock_switch))
-        self.assertEqual(self.napp._multipart_replies_xids[dpid]['skipped'], 1)
+        assert self.napp._check_overlapping_multipart_request(mock_switch)
+        assert self.napp._multipart_replies_xids[dpid]['skipped'] == 1
 
         # Case 2: skipped due to delayed port stats
         self.napp._multipart_replies_xids = {dpid: {'ports': 0xABC,
                                                     'skipped': 1}}
-        self.assertTrue(self.napp._check_overlapping_multipart_request(
-                                        mock_switch))
-        self.assertEqual(self.napp._multipart_replies_xids[dpid]['skipped'], 2)
+        assert self.napp._check_overlapping_multipart_request(mock_switch)
+        assert self.napp._multipart_replies_xids[dpid]['skipped'] == 2
 
         # Case 3: delayed port or flow stats but already skipped X times
         self.napp._multipart_replies_flows = {dpid: mock_switch}
@@ -414,10 +412,9 @@ class TestMain(TestCase):
         self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC,
                                                     'ports': 0xABC,
                                                     'skipped': 3}}
-        self.assertFalse(self.napp._check_overlapping_multipart_request(
-                                        mock_switch))
-        self.assertEqual(self.napp._multipart_replies_flows, {})
-        self.assertEqual(self.napp._multipart_replies_ports, {})
+        assert not self.napp._check_overlapping_multipart_request(mock_switch)
+        assert not self.napp._multipart_replies_flows
+        assert not self.napp._multipart_replies_ports
 
     @patch('napps.kytos.of_core.main.settings')
     def test_get_switch_req_stats_delay(self, mock_settings):
@@ -429,12 +426,12 @@ class TestMain(TestCase):
 
         # Case 1: switch already known
         self.napp.switch_req_stats_delay = {dpid: 9}
-        self.assertEqual(self.napp._get_switch_req_stats_delay(mock_switch), 9)
+        assert self.napp._get_switch_req_stats_delay(mock_switch) == 9
 
         # Case 2: switch unknown, it should have a new delay based on
         # STATS_INTERVAL
         self.napp.switch_req_stats_delay = {}
-        self.assertEqual(self.napp._get_switch_req_stats_delay(mock_switch), 3)
+        assert self.napp._get_switch_req_stats_delay(mock_switch) == 3
 
         # Case 3: switch unknown but there are other switches, it should have
         # a new delay based on STATS_INTERVAL and different from others
@@ -442,7 +439,7 @@ class TestMain(TestCase):
         mock_sw2 = get_switch_mock(dpid2)
         mock_sw2.id = dpid2
         self.napp.switch_req_stats_delay = {dpid: 3, 'last': 3}
-        self.assertEqual(self.napp._get_switch_req_stats_delay(mock_sw2), 6)
+        assert self.napp._get_switch_req_stats_delay(mock_sw2) == 6
 
     @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.main.Main.'
@@ -489,10 +486,10 @@ class TestMain(TestCase):
         content = {"source": self.switch_v0x04.connection}
         event = get_kytos_event_mock(name=name, content=content)
         count = self.switch_v0x04.connection.switch.update_lastseen.call_count
-        self.assertEqual(count, 0)
+        assert count == 0
         self.napp.handle_features_reply(event)
         count = self.switch_v0x04.connection.switch.update_lastseen.call_count
-        self.assertEqual(count, 1)
+        assert count == 1
         mock_freply_v0x04.assert_called_with(self.napp.controller, event)
         mock_send_desc_request_v0x04.assert_called_with(
             self.napp.controller, self.switch_v0x04.connection.switch)
@@ -509,8 +506,8 @@ class TestMain(TestCase):
         self.napp._multipart_replies_flows = {dpid: mock_switch}
         self.napp._multipart_replies_xids = {dpid: {'flows': 0xABC}}
         self.napp._update_switch_flows(mock_switch)
-        self.assertEqual(self.napp._multipart_replies_xids, {dpid: {}})
-        self.assertEqual(self.napp._multipart_replies_flows, {})
+        assert self.napp._multipart_replies_xids == {dpid: {}}
+        assert not self.napp._multipart_replies_flows
 
     def test_is_multipart_reply_ours(self):
         """Test _is_multipart_reply_ours."""
@@ -524,11 +521,11 @@ class TestMain(TestCase):
         self.napp._multipart_replies_xids = {dpid_a: {'flows': mock_switch}}
         response = self.napp._is_multipart_reply_ours(
             mock_reply, mock_switch, 'flows')
-        self.assertEqual(response, True)
+        assert response
 
         response = self.napp._is_multipart_reply_ours(
             mock_reply, mock_switch, 'flows')
-        self.assertEqual(response, False)
+        assert not response
 
     @patch('napps.kytos.of_core.main.Main.update_port_status')
     @patch('napps.kytos.of_core.main.Main.update_links')
@@ -589,7 +586,7 @@ class TestMain(TestCase):
         content = {'destination': mock_protocol}
         mock_event = get_kytos_event_mock(name=name, content=content)
         self.napp.handle_features_request_sent(mock_event)
-        self.assertEqual(mock_event.destination.protocol.state, expected)
+        assert mock_event.destination.protocol.state == expected
 
     def test_handle_openflow_in_hello_failed(self):
         """Test handle_openflow_in_hello_failed."""
@@ -598,13 +595,13 @@ class TestMain(TestCase):
         mock_event = get_kytos_event_mock(name='kytos/of_core',
                                           content=content)
         self.napp.handle_openflow_in_hello_failed(mock_event)
-        self.assertEqual(mock_event.destination.close.call_count, 1)
+        assert mock_event.destination.close.call_count == 1
 
     @patch('napps.kytos.of_core.main.log')
     def test_shutdown(self, mock_log):
         """Test shutdown."""
         self.napp.shutdown()
-        self.assertEqual(mock_log.debug.call_count, 1)
+        assert mock_log.debug.call_count == 1
 
     @patch('kytos.core.buffers.KytosEventBuffer.put')
     @patch('napps.kytos.of_core.main.Ethernet')

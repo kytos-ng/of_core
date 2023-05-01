@@ -20,7 +20,7 @@ from tests.helpers import (get_connection_mock, get_interface_mock,
 class TestAsync:
     """Test async methods from main"""
 
-    def setup(self):
+    def setup_method(self):
         """setup for napp mock"""
         # pylint: disable=import-outside-toplevel
         from napps.kytos.of_core.main import Main
