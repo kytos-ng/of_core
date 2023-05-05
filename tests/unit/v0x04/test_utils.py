@@ -1,6 +1,6 @@
 """Test v0x04.utils methods."""
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pyof.v0x04.common.port import PortNo, PortState
@@ -22,9 +22,10 @@ async def test_say_hello(mock_aemit_message_out, controller, switch_one):
     mock_aemit_message_out.assert_called()
 
 
-@patch('kytos.core.buffers.KytosEventBuffer.aput')
-async def test_handle_port_desc(mock_event_buffer, controller, switch_one):
+async def test_handle_port_desc(controller, switch_one):
     """Test Handle Port Desc."""
+    mock_event_buffer = AsyncMock()
+    controller.buffers.app.aput = mock_event_buffer
     mock_port = MagicMock()
     mock_port.port_no.value = PortNo.OFPP_LOCAL.value
     mock_intf = MagicMock()
@@ -36,10 +37,10 @@ async def test_handle_port_desc(mock_event_buffer, controller, switch_one):
     assert controller.buffers.app.aput.call_count == 3
 
 
-@patch('kytos.core.buffers.KytosEventBuffer.aput')
-async def test_handle_port_desc_inactive(mock_event_buffer, controller,
-                                         switch_one):
+async def test_handle_port_desc_inactive(controller, switch_one):
     """Test Handle Port Desc inactive interface."""
+    mock_event_buffer = AsyncMock()
+    controller.buffers.app.aput = mock_event_buffer
     mock_port = MagicMock()
     mock_port.port_no.value = 1
     mock_port.state.value = PortState.OFPPS_LINK_DOWN
