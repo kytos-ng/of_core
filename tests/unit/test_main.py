@@ -1,8 +1,10 @@
 """Test Main methods."""
 from unittest import TestCase
-from unittest.mock import MagicMock, PropertyMock, create_autospec, patch
+from unittest.mock import (AsyncMock, MagicMock, PropertyMock, create_autospec,
+                           patch)
 
 import pytest
+from napps.kytos.of_core.utils import NegotiationException
 from pyof.foundation.network_types import Ethernet
 from pyof.v0x04.common.port import PortState
 from pyof.v0x04.controller2switch.common import MultipartType
@@ -10,7 +12,6 @@ from pyof.v0x04.controller2switch.common import MultipartType
 from kytos.core.connection import ConnectionState
 from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
                                get_kytos_event_mock, get_switch_mock)
-from napps.kytos.of_core.utils import NegotiationException
 
 # pylint: disable=protected-access, invalid-name
 
@@ -69,16 +70,17 @@ class TestNApp:
                                                            messages)
 
     @patch('pyof.utils.v0x04.asynchronous.error_msg.ErrorMsg')
-    @patch('napps.kytos.of_core.main.Main.aemit_message_out')
-    @patch('kytos.core.buffers.KytosEventBuffer.aput')
     async def test_fail_negotiation(
         self,
-        mock_event_buffer,
-        mock_aemit_message_out,
         mock_error_msg,
         napp
     ):
         """Test fail_negotiation."""
+        mock_aemit_message_out = AsyncMock()
+        mock_event_buffer = AsyncMock()
+        napp.aemit_message_out = mock_aemit_message_out
+        napp.controller._buffers.app.aput = mock_event_buffer
+
         mock_connection = MagicMock()
         mock_message = MagicMock()
         mock_connection.id = "A"
@@ -101,6 +103,8 @@ class TestNApp:
         napp
     ):
         """Test negotiate."""
+        napp.controller._buffers.app.aput = AsyncMock()
+        napp.controller._buffers.msg_out.aput = AsyncMock()
         mock_version_header.return_value = 4
         mock_version_bitmask.side_effect = [4, None]
         mock_connection = MagicMock()
@@ -206,7 +210,6 @@ class TestNApp:
         assert switch_one.update_description.call_count == 1
 
     @patch('napps.kytos.of_core.main.log')
-    @patch('kytos.core.buffers.KytosEventBuffer.aput')
     @patch('napps.kytos.of_core.main.Main._update_switch_flows')
     @patch('napps.kytos.of_core.v0x04.flow.Flow.from_of_flow_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
@@ -215,7 +218,6 @@ class TestNApp:
         mock_is_multipart_reply_ours,
         mock_from_of_flow_stats_v0x04,
         mock_update_switch_flows,
-        mock_buffer_aput,
         mock_log,
         switch_one,
         napp
@@ -223,6 +225,9 @@ class TestNApp:
         """Test on multipart flow stats."""
         mock_is_multipart_reply_ours.return_value = True
         mock_from_of_flow_stats_v0x04.return_value = "ABC"
+
+        mock_buffer_aput = AsyncMock()
+        napp.controller._buffers.app.aput = mock_buffer_aput
 
         flow_msg = MagicMock()
         flow_msg.body = "A"
@@ -290,6 +295,7 @@ class TestNApp:
         napp
     ):
         """Test aemit_message_in."""
+        napp.controller._buffers.msg_in.aput = AsyncMock()
         mock_port_connection = MagicMock()
         msg_port_mock = MagicMock()
         msg_port_mock.header.message_type.name = 'ofpt_port_status'
@@ -308,9 +314,10 @@ class TestNApp:
         mock_update_links.assert_called_with(msg_packet_in_mock,
                                              mock_packet_in_connection)
 
-    @patch('napps.kytos.of_core.main.aemit_message_out')
-    async def test_emit_message_out(self, mock_aemit_message_out, napp):
+    async def test_emit_message_out(self, napp):
         """Test emit message_out."""
+        mock_aemit_message_out = AsyncMock()
+        napp.controller._buffers.msg_out.aput = mock_aemit_message_out
         mock_connection = MagicMock()
         mock_message = MagicMock()
         mock_connection.is_alive.return_value = True
@@ -471,14 +478,15 @@ class TestMain(TestCase):
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
 
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
     @patch('napps.kytos.of_core.v0x04.utils.send_set_config')
     @patch('napps.kytos.of_core.v0x04.utils.send_desc_request')
     @patch('napps.kytos.of_core.v0x04.utils.handle_features_reply')
     def test_handle_features_reply(self, *args):
         """Test handle features reply."""
         (mock_freply_v0x04, mock_send_desc_request_v0x04,
-         mock_send_set_config_v0x04, mock_buffers_put) = args
+         mock_send_set_config_v0x04) = args
+        mock_buffers_put = MagicMock()
+        self.napp.controller._buffers.app.put = mock_buffers_put
         mock_freply_v0x04.return_value = self.switch_v0x04.connection.switch
         name = 'kytos/of_core.v0x04.messages.in.ofpt_features_reply'
         self.switch_v0x04.connection.state = ConnectionState.SETUP
@@ -603,11 +611,11 @@ class TestMain(TestCase):
         self.napp.shutdown()
         assert mock_log.debug.call_count == 1
 
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
     @patch('napps.kytos.of_core.main.Ethernet')
-    def test_update_links(self, *args):
+    def test_update_links(self, mock_ethernet):
         """Test update_links."""
-        (mock_ethernet, mock_buffer_put) = args
+        mock_buffer_put = MagicMock()
+        self.napp.controller._buffers.app.put = mock_buffer_put
         ethernet = create_autospec(Ethernet)
         ethernet.ether_type = "A"
         mock_ethernet.side_effect = ethernet
@@ -619,9 +627,10 @@ class TestMain(TestCase):
         mock_ethernet.assert_called()
         mock_buffer_put.assert_called()
 
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
-    def test_send_specific_port_mod(self, mock_buffer_put):
+    def test_send_specific_port_mod(self):
         """Test send specific port."""
+        mock_buffer_put = MagicMock()
+        self.napp.controller._buffers.app.put = mock_buffer_put
         mock_port = MagicMock()
         mock_interface = MagicMock()
         type(mock_port.state).value = PropertyMock(side_effect=[0, 1, 2])
@@ -640,12 +649,13 @@ class TestMain(TestCase):
                                           mock_interface, current_state)
         mock_buffer_put.assert_called()
 
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
     @patch('napps.kytos.of_core.main.Interface')
     @patch('napps.kytos.of_core.main.Main._send_specific_port_mod')
     def test_update_port_status(self, *args):
         """Test update_port_status."""
-        (mock_port_mod, mock_interface, mock_buffer_put) = args
+        (mock_port_mod, mock_interface) = args
+        mock_buffer_put = MagicMock()
+        self.napp.controller._buffers.app.put = mock_buffer_put
         mock_intf = MagicMock()
         mock_interface.return_value = mock_intf
         mock_port_status = MagicMock()

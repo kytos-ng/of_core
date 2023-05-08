@@ -1,5 +1,5 @@
 """Integration test main."""
-# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-order,protected-access
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -11,6 +11,7 @@ from pyof.v0x04.symmetric.echo_request import EchoRequest
 
 from kytos.core.connection import ConnectionState
 from kytos.core.events import KytosEvent
+from kytos.core.buffers import KytosBuffers
 from kytos.lib.helpers import get_controller_mock
 from napps.kytos.of_core.utils import GenericHello
 from tests.helpers import (get_connection_mock, get_interface_mock,
@@ -30,6 +31,7 @@ class TestAsync:
     @patch("time.sleep")
     def test_execute(self, mock_sleep):
         """Test 'execute' main method."""
+        self.napp.controller._buffers = KytosBuffers()
         dpid_01 = "00:00:00:00:00:00:00:01"
         dpid_02 = "00:00:00:00:00:00:00:02"
         sw_04 = get_switch_mock(dpid_02)
@@ -53,6 +55,7 @@ class TestAsync:
 
     async def test_handle_hello_raw_in(self):
         """Test handling hello raw in message."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/core.openflow.raw.in'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -73,6 +76,7 @@ class TestAsync:
 
     async def test_handle_port_status_raw_in(self):
         """Test handling port_status raw in message."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/core.openflow.raw.in'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -96,6 +100,7 @@ class TestAsync:
 
     async def test_handle_packet_in_raw_in(self):
         """Test handling packet_in raw in message."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/core.openflow.raw.in'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -124,6 +129,7 @@ class TestAsync:
     # pylint: disable=too-many-locals
     async def test_handle_port_desc_multipart_reply(self):
         """Test handling to ofpt_PORT_DESC."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -190,6 +196,7 @@ class TestAsync:
 
     async def test_handle_multipart_reply(self):
         """Test handling ofpt_multipart_reply."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_multipart_reply'
         switch = get_switch_mock("00:00:00:00:00:00:00:02")
         switch.connection = get_connection_mock(
@@ -286,6 +293,7 @@ class TestMain(TestCase):
 
     def test_handle_04_features_reply(self):
         """Test handling features reply message."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_features_reply'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
@@ -342,6 +350,7 @@ class TestMain(TestCase):
 
     def test_handle_echo_request(self):
         """Test handling echo request message."""
+        self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_echo_request'
         switch = get_switch_mock()
         switch.connection = get_connection_mock(
