@@ -10,6 +10,10 @@ Changed
 =======
 - ``MatchDLVLAN`` can handle values such as ``"4096/4096"`` and 0
 
+Added
+=====
+- New event ``kytos/of_core.table_stats.received`` to notify when new table statistics are available.
+
 
 [2022.3.1] - 2023-02-23
 ***********************

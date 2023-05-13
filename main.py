@@ -240,7 +240,6 @@ class Main(KytosNApp):
                                 'replies_tables': replies_tables
                             })
                 await self.controller.buffers.app.aput(event_raw)
-                log.info(f"Table stats received: {len(replies_tables)} tables")
                 return True
 
     async def _handle_multipart_port_stats(self, reply, switch):
