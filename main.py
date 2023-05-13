@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 
 from napps.kytos.of_core import settings
+from napps.kytos.of_core.table import TableStats
 from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
                                        aemit_message_in, aemit_message_out,
                                        emit_message_in, emit_message_out,
@@ -35,6 +36,7 @@ class Main(KytosNApp):
     _multipart_replies_xids = {}
     _multipart_replies_flows = defaultdict(list)
     _multipart_replies_ports = defaultdict(list)
+    _multipart_replies_tables = defaultdict(list)
 
     def setup(self):
         """App initialization (used instead of ``__init__``).
@@ -73,7 +75,8 @@ class Main(KytosNApp):
     def _check_overlapping_multipart_request(self, switch):
         """Check overlapping multipart stats request (OF 1.3 only)."""
         current_req = self._multipart_replies_xids.get(switch.id, {})
-        if ('flows' in current_req or 'ports' in current_req) and \
+        if ('flows' in current_req or 'ports' in current_req or
+           'tables' in current_req) and \
            current_req.get('skipped', 0) < settings.STATS_REQ_SKIP:
             log.info("Overlapping stats request: switch %s flows_xid %s"
                      " ports_xid %s", switch.id, current_req.get('flows'),
@@ -85,6 +88,8 @@ class Main(KytosNApp):
             del self._multipart_replies_flows[switch.id]
         if switch.id in self._multipart_replies_ports:
             del self._multipart_replies_ports[switch.id]
+        if switch.id in self._multipart_replies_tables:
+            del self._multipart_replies_tables[switch.id]
         return False
 
     def _get_switch_req_stats_delay(self, switch):
@@ -109,8 +114,13 @@ class Main(KytosNApp):
                                                              switch)
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
                                                                switch)
-            self._multipart_replies_xids[switch.id] = {'flows': xid_flows,
-                                                       'ports': xid_ports}
+            xid_tables = of_core_v0x04_utils.update_table_list(self.controller,
+                                                               switch)
+            self._multipart_replies_xids[switch.id] = {
+                                                        'flows': xid_flows,
+                                                        'ports': xid_ports,
+                                                        'tables': xid_tables
+                                                      }
 
     @listen_to('kytos/of_core.v0x04.messages.in.ofpt_features_reply')
     def on_features_reply(self, event):
@@ -163,6 +173,8 @@ class Main(KytosNApp):
         """Handle multipart replies for v0x04 switches."""
         if reply.multipart_type == MultipartType.OFPMP_FLOW:
             await self._handle_multipart_flow_stats(reply, switch)
+        elif reply.multipart_type == MultipartType.OFPMP_TABLE:
+            await self._handle_multipart_table_stats(reply, switch)
         elif reply.multipart_type == MultipartType.OFPMP_PORT_STATS:
             await self._handle_multipart_port_stats(reply, switch)
         elif reply.multipart_type == MultipartType.OFPMP_PORT_DESC:
@@ -199,6 +211,38 @@ class Main(KytosNApp):
                 await self.controller.buffers.app.aput(event_raw)
                 return True
 
+    async def _handle_multipart_table_stats(self, reply, switch):
+        """Update switch tables after all replies are received.
+
+        Returns true if no more replies are expected.
+        """
+        if self._is_multipart_reply_ours(reply, switch, 'tables'):
+            # Get all tables from the reply and extend the multipar tables list
+            tables = [TableStats.from_of_table_stats(of_table_stats, switch)
+                      for of_table_stats in reply.body]
+            self._multipart_replies_tables[switch.id].extend(tables)
+            xid = int(reply.header.xid)
+            if reply.flags.value % 2 == 0:  # Last bit means more replies
+                try:
+                    replies_tables = [
+                        table for table
+                        in self._multipart_replies_tables[switch.id]
+                    ]
+                    self._update_switch_tables(switch)
+                except KeyError:
+                    log.error("Skipped tables stats reply due to error when"
+                              f"updating switch {switch.id}, xid {xid}")
+                    return
+                event_raw = KytosEvent(
+                    name='kytos/of_core.table_stats.received',
+                    content={
+                                'switch': switch,
+                                'replies_tables': replies_tables
+                            })
+                await self.controller.buffers.app.aput(event_raw)
+                log.info(f"Table stats received: {len(replies_tables)} tables")
+                return True
+
     async def _handle_multipart_port_stats(self, reply, switch):
         """Emit an event about new port stats."""
         if self._is_multipart_reply_ours(reply, switch, 'ports'):
@@ -212,6 +256,12 @@ class Main(KytosNApp):
         switch.flows = self._multipart_replies_flows[switch.id]
         del self._multipart_replies_flows[switch.id]
         del self._multipart_replies_xids[switch.id]['flows']
+
+    def _update_switch_tables(self, switch):
+        """Update controllers' switch tables list and clean resources."""
+        switch.tables = self._multipart_replies_tables[switch.id]
+        del self._multipart_replies_tables[switch.id]
+        del self._multipart_replies_xids[switch.id]['tables']
 
     async def _new_port_stats(self, switch):
         """Send an event with the new port stats and clean resources."""
@@ -506,6 +556,7 @@ class Main(KytosNApp):
         self._multipart_replies_xids.pop(switch.id, None)
         self._multipart_replies_flows.pop(switch.id, None)
         self._multipart_replies_ports.pop(switch.id, None)
+        self._multipart_replies_tables.pop(switch.id, None)
 
     @alisten_to("kytos/core.openflow.connection.error")
     async def on_openflow_connection_error(self, event):

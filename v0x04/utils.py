@@ -65,6 +65,25 @@ def request_port_stats(controller, switch):
     return multipart_request.header.xid
 
 
+def update_table_list(controller, switch):
+    """Request table stats from switches.
+
+    Args:
+        controller(:class:`~kytos.core.controller.Controller`):
+            the controller being used.
+        switch(:class:`~kytos.core.switch.Switch`):
+            target to send a stats request.
+
+    Returns:
+        int: multipart request xid
+
+    """
+    multipart_request = MultipartRequest()
+    multipart_request.multipart_type = MultipartType.OFPMP_TABLE
+    emit_message_out(controller, switch.connection, multipart_request)
+    return multipart_request.header.xid
+
+
 def send_desc_request(controller, switch):
     """Request vendor-specific switch description.
 
