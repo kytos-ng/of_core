@@ -19,6 +19,7 @@ from pyof.utils import PYOF_VERSION_LIBS, unpack
 from pyof.v0x04.common.header import Type
 from pyof.v0x04.common.port import PortState
 from pyof.v0x04.controller2switch.common import MultipartType
+from pyof.v0x04.controller2switch.features_reply import Capabilities
 
 from kytos.core import KytosEvent, KytosNApp, log
 from kytos.core.connection import ConnectionState
@@ -60,7 +61,7 @@ class Main(KytosNApp):
         """
         for switch in self.controller.switches.copy().values():
             if switch.is_connected():
-                self.request_flow_list(switch)
+                self.request_list(switch)
                 if settings.SEND_ECHO_REQUESTS:
                     version_utils = \
                         self.of_core_version_utils[switch.
@@ -68,9 +69,9 @@ class Main(KytosNApp):
                     version_utils.send_echo(self.controller, switch)
 
     @run_on_thread
-    def request_flow_list(self, switch):
+    def request_list(self, switch):
         """Send flow stats request to a connected switch."""
-        self._request_flow_list(switch)
+        self._request_list(switch)
 
     def _check_overlapping_multipart_request(self, switch):
         """Check overlapping multipart stats request (OF 1.3 only)."""
@@ -102,7 +103,7 @@ class Main(KytosNApp):
         self.switch_req_stats_delay['last'] = next_delay
         return next_delay
 
-    def _request_flow_list(self, switch):
+    def _request_list(self, switch):
         """Send flow stats request to a connected switch."""
         time.sleep(self._get_switch_req_stats_delay(switch))
         of_version = switch.connection.protocol.version
@@ -114,13 +115,17 @@ class Main(KytosNApp):
                                                              switch)
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
                                                                switch)
-            xid_tables = of_core_v0x04_utils.update_table_list(self.controller,
-                                                               switch)
             self._multipart_replies_xids[switch.id] = {
                                                         'flows': xid_flows,
-                                                        'ports': xid_ports,
-                                                        'tables': xid_tables
+                                                        'ports': xid_ports
                                                       }
+            if switch.features.capabilities.value & \
+                Capabilities.OFPC_TABLE_STATS == \
+                    Capabilities.OFPC_TABLE_STATS:
+                xid_tables = of_core_v0x04_utils.request_table_stats(
+                    self.controller, switch)
+                self._multipart_replies_xids[switch.id].update(
+                    {'tables': xid_tables})
 
     @listen_to('kytos/of_core.v0x04.messages.in.ofpt_features_reply')
     def on_features_reply(self, event):
@@ -155,19 +160,19 @@ class Main(KytosNApp):
             self.controller.buffers.app.put(event_raw)
 
     @listen_to('kytos/of_core.handshake.completed')
-    def on_handshake_completed_request_flow_list(self, event):
-        """Request an flow list right after the handshake is completed.
+    def on_handshake_completed_request_list(self, event):
+        """Request a flow list right after the handshake is completed.
 
         Args:
             event (KytosEvent): Event with the switch' handshake completed
         """
         switch = event.content['switch']
         if switch.is_enabled():
-            self.handle_handshake_completed_request_flow_list(switch)
+            self.handle_handshake_completed_request_list(switch)
 
-    def handle_handshake_completed_request_flow_list(self, switch):
-        """Request an flow list right after the handshake is completed."""
-        self._request_flow_list(switch)
+    def handle_handshake_completed_request_list(self, switch):
+        """Request a flow list right after the handshake is completed."""
+        self._request_list(switch)
 
     async def _handle_multipart_reply(self, reply, switch):
         """Handle multipart replies for v0x04 switches."""
@@ -228,7 +233,8 @@ class Main(KytosNApp):
                         table for table
                         in self._multipart_replies_tables[switch.id]
                     ]
-                    self._update_switch_tables(switch)
+                    del self._multipart_replies_tables[switch.id]
+                    del self._multipart_replies_xids[switch.id]['tables']
                 except KeyError:
                     log.error("Skipped tables stats reply due to error when"
                               f"updating switch {switch.id}, xid {xid}")
@@ -255,12 +261,6 @@ class Main(KytosNApp):
         switch.flows = self._multipart_replies_flows[switch.id]
         del self._multipart_replies_flows[switch.id]
         del self._multipart_replies_xids[switch.id]['flows']
-
-    def _update_switch_tables(self, switch):
-        """Update controllers' switch tables list and clean resources."""
-        switch.tables = self._multipart_replies_tables[switch.id]
-        del self._multipart_replies_tables[switch.id]
-        del self._multipart_replies_xids[switch.id]['tables']
 
     async def _new_port_stats(self, switch):
         """Send an event with the new port stats and clean resources."""

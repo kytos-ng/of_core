@@ -65,7 +65,7 @@ def request_port_stats(controller, switch):
     return multipart_request.header.xid
 
 
-def update_table_list(controller, switch):
+def request_table_stats(controller, switch):
     """Request table stats from switches.
 
     Args:

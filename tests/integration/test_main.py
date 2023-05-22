@@ -1,7 +1,7 @@
 """Integration test main."""
 # pylint: disable=wrong-import-order,protected-access
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from pyof.v0x04.controller2switch.features_reply import \
     FeaturesReply as FReply_v0x04
@@ -40,8 +40,9 @@ class TestAsync:
         sw_ = self.napp.controller.get_switch_or_create(dpid_02,
                                                         sw_04.connection)
         sw_.is_connected = lambda: True
+        sw_ = self._add_features_switch(sw_)
         # pylint: disable=protected-access
-        self.napp.request_flow_list = self.napp._request_flow_list
+        self.napp.request_list = self.napp._request_list
         self.napp.execute()
         mock_sleep.assert_called()
         expected = [
@@ -52,6 +53,13 @@ class TestAsync:
         for message in expected:
             of_event = self.napp.controller.buffers.msg_out.get()
             assert of_event.name == message
+
+    def _add_features_switch(self, switch):
+        """Auxiliar function to get switch mock"""
+        switch.features = MagicMock()
+        switch.features.capabilities = MagicMock()
+        switch.features.capabilities.value = 73
+        return switch
 
     async def test_handle_hello_raw_in(self):
         """Test handling hello raw in message."""

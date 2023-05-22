@@ -1,11 +1,10 @@
 """High-level abstraction for Tables of multiple OpenFlow versions.
 """
 import json
-from abc import ABC
 
 
-class TableStats(ABC):
-    """Class to abstract a Table to switches.
+class TableStats:
+    """Class with table fields.
     """
 
     def __init__(self, switch, table_id=0x0, active_count=0,
