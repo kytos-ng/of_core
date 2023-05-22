@@ -119,13 +119,16 @@ class Main(KytosNApp):
                                                         'flows': xid_flows,
                                                         'ports': xid_ports
                                                       }
-            if switch.features.capabilities.value & \
-                Capabilities.OFPC_TABLE_STATS == \
-                    Capabilities.OFPC_TABLE_STATS:
-                xid_tables = of_core_v0x04_utils.request_table_stats(
-                    self.controller, switch)
-                self._multipart_replies_xids[switch.id].update(
-                    {'tables': xid_tables})
+            try:
+                if switch.features.capabilities.value & \
+                    Capabilities.OFPC_TABLE_STATS == \
+                        Capabilities.OFPC_TABLE_STATS:
+                    xid_tables = of_core_v0x04_utils.request_table_stats(
+                        self.controller, switch)
+                    self._multipart_replies_xids[switch.id].update(
+                        {'tables': xid_tables})
+            except AttributeError as err:
+                log.error(f"Capabilities not set on switch {switch.id}: {err}")
 
     @listen_to('kytos/of_core.v0x04.messages.in.ofpt_features_reply')
     def on_features_reply(self, event):

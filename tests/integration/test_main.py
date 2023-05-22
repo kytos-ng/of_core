@@ -58,7 +58,7 @@ class TestAsync:
         """Auxiliar function to get switch mock"""
         switch.features = MagicMock()
         switch.features.capabilities = MagicMock()
-        switch.features.capabilities.value = 1
+        switch.features.capabilities.value = 2
         return switch
 
     async def test_handle_hello_raw_in(self):
