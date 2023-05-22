@@ -179,12 +179,14 @@ class TestNApp:
         assert mock_aemit_message_in.call_count == len(messages[0xABC])
         assert mock_handle_multipart_reply.call_count == len(messages[0xABC])
 
+    @patch('napps.kytos.of_core.main.Main._handle_multipart_table_stats')
     @patch('napps.kytos.of_core.main.Main._handle_multipart_flow_stats')
     @patch('napps.kytos.of_core.v0x04.utils.handle_port_desc')
     async def test_handle_multipart_reply(
         self,
         mock_of_core_v0x04_utils,
         mock_from_of_flow_stats_v0x04,
+        mock_from_of_table_stats,
         switch_one,
         napp,
     ):
@@ -194,6 +196,12 @@ class TestNApp:
         await napp._handle_multipart_reply(flow_msg, switch_one)
         mock_from_of_flow_stats_v0x04.assert_called_with(
             flow_msg, switch_one.connection.switch)
+
+        table_msg = MagicMock()
+        table_msg.multipart_type = MultipartType.OFPMP_TABLE
+        await napp._handle_multipart_reply(table_msg, switch_one)
+        mock_from_of_table_stats.assert_called_with(
+            table_msg, switch_one.connection.switch)
 
         ofpmp_port_desc = MagicMock()
         ofpmp_port_desc.body = "A"
@@ -260,6 +268,44 @@ class TestNApp:
         await napp._handle_multipart_flow_stats(flow_msg, switch_one)
         assert mock_log.error.call_count == 1
         mock_buffer_aput.assert_not_called()
+
+    @patch('napps.kytos.of_core.table.TableStats.from_of_table_stats')
+    @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
+    async def test_on_multipart_table_stats(
+        self,
+        mock_is_multipart_reply_ours,
+        mock_from_of_table_stats,
+        switch_one,
+        napp
+    ):
+        """Test on multipart table stats."""
+        mock_is_multipart_reply_ours.return_value = True
+
+        mock_buffer_aput = AsyncMock()
+        napp.controller._buffers.app.aput = mock_buffer_aput
+
+        table_msg = MagicMock()
+        table_msg.body = "A"
+        table_msg.flags.value = 2
+        table_msg.body_type = MultipartType.OFPMP_TABLE
+        table_msg.header.xid = 0xABC
+
+        dpid = switch_one.id
+        xid_tables = 0xABC
+        napp._multipart_replies_xids = {dpid: {'tables': xid_tables}}
+
+        await napp._handle_multipart_table_stats(table_msg, switch_one)
+
+        mock_is_multipart_reply_ours.assert_called_with(table_msg,
+                                                        switch_one,
+                                                        'tables')
+        mock_from_of_table_stats.assert_called_with(table_msg.body,
+                                                    switch_one)
+        assert mock_buffer_aput.call_count == 1
+        kytos_event = mock_buffer_aput.call_args[0][0]
+        assert kytos_event.name == 'kytos/of_core.table_stats.received'
+        assert kytos_event.content['switch'] == switch_one
+        assert "replies_tables" in kytos_event.content
 
     @patch('napps.kytos.of_core.main.Main._new_port_stats')
     @patch('napps.kytos.of_core.main.Main._is_multipart_reply_ours')
@@ -386,13 +432,21 @@ class TestMain(TestCase):
     @patch('napps.kytos.of_core.v0x04.utils.send_echo')
     def test_execute(self, mock_of_core_v0x04_utils):
         """Test execute."""
-        self.napp.request_flow_list = MagicMock()
+        self.napp.request_stats = MagicMock()
         self.switch_v0x04.is_connected.return_value = True
+
         self.napp.controller.switches = {"00:00:00:00:00:00:00:01":
                                          self.switch_v0x04}
         self.napp.execute()
         mock_of_core_v0x04_utils.assert_called()
-        assert self.napp.request_flow_list.call_count == 1
+        assert self.napp.request_stats.call_count == 1
+
+    def _add_features_switch(self, switch):
+        """Auxiliar function to get switch mock"""
+        switch.features = MagicMock()
+        switch.features.capabilities = MagicMock()
+        switch.features.capabilities.value = 2
+        return switch
 
     @patch('napps.kytos.of_core.main.settings')
     def test_check_overlapping_multipart_request(self, mock_settings):
@@ -452,29 +506,47 @@ class TestMain(TestCase):
     @patch('napps.kytos.of_core.main.Main.'
            '_check_overlapping_multipart_request')
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
-    def test_request_flow_list(self, *args):
+    @patch('napps.kytos.of_core.v0x04.utils.request_table_stats')
+    def test_request_stats(self, *args):
         """Test request flow list."""
-        (mock_update_flow_list_v0x04, mock_check_overlapping_multipart_request,
-            _) = args
+        (mock_request_table_stats_v0x4, mock_update_flow_list_v0x04,
+            mock_check_overlapping_multipart_request, _) = args
         mock_update_flow_list_v0x04.return_value = 0xABC
         mock_check_overlapping_multipart_request.return_value = False
-        self.napp._request_flow_list(self.switch_v0x04)
+        self.switch_v0x04 = self._add_features_switch(self.switch_v0x04)
+        self.napp._request_stats(self.switch_v0x04)
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
+        mock_request_table_stats_v0x4.return_value = 0xABC
+        mock_request_table_stats_v0x4.assert_called_with(self.napp.controller,
+                                                         self.switch_v0x04)
 
         mock_update_flow_list_v0x04.call_count = 0
         mock_check_overlapping_multipart_request.return_value = True
-        self.napp._request_flow_list(self.switch_v0x04)
+        self.napp._request_stats(self.switch_v0x04)
         mock_update_flow_list_v0x04.assert_not_called()
 
     @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.of_core.main.Main.'
+           '_check_overlapping_multipart_request')
+    @patch('napps.kytos.of_core.v0x04.utils.request_table_stats')
+    def test_request_stats_no_capabilities_for_table(self, *args):
+        """Test request flow list."""
+        (mock_request_table_stats_v0x4,
+            mock_check_overlapping_multipart_request, _) = args
+        mock_check_overlapping_multipart_request.return_value = False
+        self.napp._request_stats(self.switch_v0x04)
+        mock_request_table_stats_v0x4.return_value = 0xABC
+        mock_request_table_stats_v0x4.assert_not_called()
+
+    @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
-    def test_on_handshake_completed_request_flow_list(self, *args):
+    def test_on_handshake_completed_request_stats(self, *args):
         """Test request flow list."""
         (mock_update_flow_list_v0x04, _) = args
         mock_update_flow_list_v0x04.return_value = 0xABC
-        sw = self.switch_v0x04
-        self.napp.handle_handshake_completed_request_flow_list(sw)
+        sw = self._add_features_switch(self.switch_v0x04)
+        self.napp.handle_handshake_completed_request_stats(sw)
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
 

@@ -140,6 +140,22 @@ Content:
     'replies_flows': <list of Flow04>
    }
 
+kytos/of_core.table_stats.received
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that OpenFlow multipart OFPMP_TABLE message has been received.
+
+This event includes the switch with tables.
+
+Content:
+
+.. code-block:: python
+
+   {
+    'switch': <switch>,
+    'replies_tables': <list of TableStats>
+   }
+
 kytos/of_core.reachable.mac
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
