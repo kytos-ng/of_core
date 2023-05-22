@@ -433,20 +433,20 @@ class TestMain(TestCase):
     @patch('napps.kytos.of_core.v0x04.utils.send_echo')
     def test_execute(self, mock_of_core_v0x04_utils):
         """Test execute."""
-        self.napp.request_list = MagicMock()
+        self.napp.request_stats = MagicMock()
         self.switch_v0x04.is_connected.return_value = True
 
         self.napp.controller.switches = {"00:00:00:00:00:00:00:01":
                                          self.switch_v0x04}
         self.napp.execute()
         mock_of_core_v0x04_utils.assert_called()
-        assert self.napp.request_list.call_count == 1
+        assert self.napp.request_stats.call_count == 1
 
     def _add_features_switch(self, switch):
         """Auxiliar function to get switch mock"""
         switch.features = MagicMock()
         switch.features.capabilities = MagicMock()
-        switch.features.capabilities.value = 73
+        switch.features.capabilities.value = 1
         return switch
 
     @patch('napps.kytos.of_core.main.settings')
@@ -507,29 +507,29 @@ class TestMain(TestCase):
     @patch('napps.kytos.of_core.main.Main.'
            '_check_overlapping_multipart_request')
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
-    def test_request_list(self, *args):
+    def test_request_stats(self, *args):
         """Test request flow list."""
         (mock_update_flow_list_v0x04, mock_check_overlapping_multipart_request,
             _) = args
         mock_update_flow_list_v0x04.return_value = 0xABC
         mock_check_overlapping_multipart_request.return_value = False
-        self.napp._request_list(self.switch_v0x04)
+        self.napp._request_stats(self.switch_v0x04)
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
 
         mock_update_flow_list_v0x04.call_count = 0
         mock_check_overlapping_multipart_request.return_value = True
-        self.napp._request_list(self.switch_v0x04)
+        self.napp._request_stats(self.switch_v0x04)
         mock_update_flow_list_v0x04.assert_not_called()
 
     @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
-    def test_on_handshake_completed_request_list(self, *args):
+    def test_on_handshake_completed_request_stats(self, *args):
         """Test request flow list."""
         (mock_update_flow_list_v0x04, _) = args
         mock_update_flow_list_v0x04.return_value = 0xABC
         sw = self.switch_v0x04
-        self.napp.handle_handshake_completed_request_list(sw)
+        self.napp.handle_handshake_completed_request_stats(sw)
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
 

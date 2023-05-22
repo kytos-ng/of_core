@@ -42,7 +42,7 @@ class TestAsync:
         sw_.is_connected = lambda: True
         sw_ = self._add_features_switch(sw_)
         # pylint: disable=protected-access
-        self.napp.request_list = self.napp._request_list
+        self.napp.request_stats = self.napp._request_stats
         self.napp.execute()
         mock_sleep.assert_called()
         expected = [
@@ -58,7 +58,7 @@ class TestAsync:
         """Auxiliar function to get switch mock"""
         switch.features = MagicMock()
         switch.features.capabilities = MagicMock()
-        switch.features.capabilities.value = 73
+        switch.features.capabilities.value = 1
         return switch
 
     async def test_handle_hello_raw_in(self):

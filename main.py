@@ -61,7 +61,7 @@ class Main(KytosNApp):
         """
         for switch in self.controller.switches.copy().values():
             if switch.is_connected():
-                self.request_list(switch)
+                self.request_stats(switch)
                 if settings.SEND_ECHO_REQUESTS:
                     version_utils = \
                         self.of_core_version_utils[switch.
@@ -69,9 +69,9 @@ class Main(KytosNApp):
                     version_utils.send_echo(self.controller, switch)
 
     @run_on_thread
-    def request_list(self, switch):
+    def request_stats(self, switch):
         """Send flow stats request to a connected switch."""
-        self._request_list(switch)
+        self._request_stats(switch)
 
     def _check_overlapping_multipart_request(self, switch):
         """Check overlapping multipart stats request (OF 1.3 only)."""
@@ -103,7 +103,7 @@ class Main(KytosNApp):
         self.switch_req_stats_delay['last'] = next_delay
         return next_delay
 
-    def _request_list(self, switch):
+    def _request_stats(self, switch):
         """Send flow stats request to a connected switch."""
         time.sleep(self._get_switch_req_stats_delay(switch))
         of_version = switch.connection.protocol.version
@@ -160,7 +160,7 @@ class Main(KytosNApp):
             self.controller.buffers.app.put(event_raw)
 
     @listen_to('kytos/of_core.handshake.completed')
-    def on_handshake_completed_request_list(self, event):
+    def on_handshake_completed_request_stats(self, event):
         """Request a flow list right after the handshake is completed.
 
         Args:
@@ -168,11 +168,11 @@ class Main(KytosNApp):
         """
         switch = event.content['switch']
         if switch.is_enabled():
-            self.handle_handshake_completed_request_list(switch)
+            self.handle_handshake_completed_request_stats(switch)
 
-    def handle_handshake_completed_request_list(self, switch):
+    def handle_handshake_completed_request_stats(self, switch):
         """Request a flow list right after the handshake is completed."""
-        self._request_list(switch)
+        self._request_stats(switch)
 
     async def _handle_multipart_reply(self, reply, switch):
         """Handle multipart replies for v0x04 switches."""
