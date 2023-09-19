@@ -370,26 +370,6 @@ class TestNApp:
         await napp.aemit_message_out(mock_connection, mock_message)
         mock_aemit_message_out.assert_called()
 
-    async def test_on_connection_lost(self, napp) -> None:
-        """Test on_connection_lost."""
-        dpid = "1"
-        event, switch = MagicMock(), MagicMock(id=dpid)
-        event.content["source"].switch = switch
-        napp._multipart_replies_xids[dpid] = {"flows": 2, "ports": 3}
-        napp._multipart_replies_flows[dpid] = [MagicMock()]
-        napp._multipart_replies_ports[dpid] = [MagicMock()]
-        await napp.on_connection_lost(event)
-        assert dpid not in napp._multipart_replies_xids
-        assert dpid not in napp._multipart_replies_flows
-        assert dpid not in napp._multipart_replies_ports
-
-        # To also cover the early return
-        event = MagicMock()
-        event.content["source"].switch = None
-        napp.pop_multipart_replies = MagicMock()
-        await napp.on_connection_lost(event)
-        napp.pop_multipart_replies.assert_not_called()
-
     async def test_on_openflow_connection_error(self, napp) -> None:
         """Test on_openflow_connection_error."""
         dpid = "1"
@@ -559,6 +539,8 @@ class TestMain(TestCase):
          mock_send_set_config_v0x04) = args
         mock_buffers_put = MagicMock()
         self.napp.controller._buffers.app.put = mock_buffers_put
+        dpid = self.switch_v0x04.connection.switch.dpid
+        self.switch_v0x04.connection.switch.id = dpid
         mock_freply_v0x04.return_value = self.switch_v0x04.connection.switch
         name = 'kytos/of_core.v0x04.messages.in.ofpt_features_reply'
         self.switch_v0x04.connection.state = ConnectionState.SETUP
@@ -567,6 +549,13 @@ class TestMain(TestCase):
         event = get_kytos_event_mock(name=name, content=content)
         count = self.switch_v0x04.connection.switch.update_lastseen.call_count
         assert count == 0
+
+        # To simulate a few existing multipart replies for extra test cov
+        self.napp._multipart_replies_xids[dpid] = {"flows": 2, "ports": 3}
+        self.napp._multipart_replies_flows[dpid] = [MagicMock()]
+        self.napp._multipart_replies_ports[dpid] = [MagicMock()]
+        self.napp._multipart_replies_tables[dpid] = [MagicMock()]
+
         self.napp.handle_features_reply(event)
         count = self.switch_v0x04.connection.switch.update_lastseen.call_count
         assert count == 1
@@ -575,6 +564,12 @@ class TestMain(TestCase):
             self.napp.controller, self.switch_v0x04.connection.switch)
         mock_send_set_config_v0x04.assert_called_with(
             self.napp.controller, self.switch_v0x04.connection.switch)
+
+        # Make sure it was cleaned up when handling features reply
+        assert dpid not in self.napp._multipart_replies_xids
+        assert dpid not in self.napp._multipart_replies_flows
+        assert dpid not in self.napp._multipart_replies_ports
+        assert dpid not in self.napp._multipart_replies_tables
 
         mock_buffers_put.assert_called()
 
