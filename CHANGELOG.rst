@@ -6,6 +6,11 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Fixed
+=====
+- Multipart replies clean up now happens before connection gets established to be safer
+
+
 [2023.1.0] - 2023-06-05
 ***********************
 
