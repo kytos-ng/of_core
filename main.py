@@ -147,6 +147,7 @@ class Main(KytosNApp):
         version_utils = self.of_core_version_utils[connection.protocol.version]
         switch = version_utils.handle_features_reply(self.controller, event)
         switch.update_lastseen()
+        self.pop_multipart_replies(switch)
 
         if (connection.is_during_setup() and
                 connection.protocol.state == 'waiting_features_reply'):
@@ -544,14 +545,6 @@ class Main(KytosNApp):
         """Close the connection upon hello failure."""
         event.destination.close()
         log.debug("Connection %s: Connection closed.", event.destination.id)
-
-    @alisten_to(".*.connection.lost")
-    async def on_connection_lost(self, event) -> None:
-        """On connection_lost event."""
-        switch = event.content["source"].switch
-        if not switch:
-            return
-        self.pop_multipart_replies(switch)
 
     def pop_multipart_replies(self, switch) -> None:
         """Pop multipart replies."""
