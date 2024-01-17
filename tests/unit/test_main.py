@@ -1,5 +1,4 @@
 """Test Main methods."""
-from unittest import TestCase
 from unittest.mock import (AsyncMock, MagicMock, PropertyMock, create_autospec,
                            patch)
 
@@ -392,10 +391,32 @@ class TestNApp:
         assert napp.pop_multipart_replies.call_count == 0
 
 
-class TestMain(TestCase):
+# pylint: disable=attribute-defined-outside-init
+# pylint: disable=import-outside-toplevel
+class TestMain:
     """Test the Main class."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def commomn_patches(self, request):
+        """This function handles setup and cleanup for patches"""
+        # This fixture sets up the common patches,
+        # and a finalizer is added using addfinalizer to stop
+        # the common patches after each test. This ensures that the cleanup
+        # is performed after each test, and additional patch decorators
+        # can be used within individual test functions.
+
+        patcher = patch("kytos.core.helpers.run_on_thread", lambda x: x)
+        mock_patch = patcher.start()
+
+        _ = request.function.__name__
+
+        def cleanup():
+            patcher.stop()
+
+        request.addfinalizer(cleanup)
+        return mock_patch
+
+    def setup_method(self):
         """Execute steps before each tests.
         Set the server_name_url from kytos/of_core
         """
@@ -403,10 +424,7 @@ class TestMain(TestCase):
         self.switch_v0x04.connection = get_connection_mock(
             0x04, get_switch_mock("00:00:00:00:00:00:00:04"))
 
-        patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
-        # pylint: disable=import-outside-toplevel
         from napps.kytos.of_core.main import Main
-        self.addCleanup(patch.stopall)
         self.napp = Main(get_controller_mock())
 
     @patch('napps.kytos.of_core.v0x04.utils.send_echo')

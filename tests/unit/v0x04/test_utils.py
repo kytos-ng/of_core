@@ -1,5 +1,4 @@
 """Test v0x04.utils methods."""
-from unittest import TestCase
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -75,11 +74,12 @@ def test_try_to_activate_interface(state, port_no, should_activate) -> None:
         interface.deactivate.assert_called()
 
 
-class TestUtils(TestCase):
+class TestUtils:
     """Test utils."""
 
-    def setUp(self):
+    def setup_method(self):
         """Execute steps before each tests."""
+        # pylint: disable=attribute-defined-outside-init
         self.mock_controller = get_controller_mock()
         self.mock_switch = get_switch_mock('00:00:00:00:00:00:00:01', 0x04)
         self.mock_connection = get_connection_mock(0x04, self.mock_switch)
@@ -102,8 +102,8 @@ class TestUtils(TestCase):
         mock_event = MagicMock()
         mock_controller.get_switch_or_create.return_value = self.mock_switch
         response = handle_features_reply(mock_controller, mock_event)
-        self.assertEqual(self.mock_switch, response)
-        self.assertEqual(self.mock_switch.update_features.call_count, 1)
+        assert self.mock_switch == response
+        assert self.mock_switch.update_features.call_count == 1
 
     @patch('napps.kytos.of_core.v0x04.utils.emit_message_out')
     def test_send_echo(self, mock_emit_message_out):

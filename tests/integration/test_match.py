@@ -1,12 +1,11 @@
 """Test Match abstraction for v0x04."""
-import unittest
-
 from pyof.v0x04.common.flow_match import Match as OFMatch04
 
 from napps.kytos.of_core.v0x04.flow import Match as Match04
+import pytest
 
 
-class TestMatch(unittest.TestCase):
+class TestMatch:
     """Tests for the Match class."""
 
     EXPECTED = {'in_port': 1,
@@ -21,17 +20,17 @@ class TestMatch(unittest.TestCase):
                 'tp_src': 6,
                 'tp_dst': 7}
 
-    def test_all_fields(self):
+    @pytest.mark.parametrize("match_class", [Match04])
+    def test_all_fields(self, match_class):
         """Test all match fields from and to dict."""
-        with self.subTest(match_class=Match04):
-            match = Match04.from_dict(self.EXPECTED)
-            actual = match.as_dict()
-            self.assertDictEqual(self.EXPECTED, actual)
+        match = match_class.from_dict(self.EXPECTED)
+        actual = match.as_dict()
+        assert self.EXPECTED == actual
 
     def test_of_match(self):
         """Test convertion between Match and OFMatch."""
         match_04 = Match04.from_dict(self.EXPECTED)
         of_match_04 = match_04.as_of_match()
         match_04_converted = Match04.from_of_match(of_match_04)
-        self.assertIsInstance(of_match_04, OFMatch04)
-        self.assertIsInstance(match_04_converted, Match04)
+        assert isinstance(of_match_04, OFMatch04)
+        assert isinstance(match_04_converted, Match04)

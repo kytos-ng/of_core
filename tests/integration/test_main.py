@@ -1,8 +1,7 @@
 """Integration test main."""
 # pylint: disable=wrong-import-order,protected-access
-from unittest import TestCase
 from unittest.mock import patch, MagicMock
-
+import pytest
 from pyof.v0x04.controller2switch.features_reply import \
     FeaturesReply as FReply_v0x04
 from pyof.v0x04.controller2switch.features_request import FeaturesRequest
@@ -263,19 +262,38 @@ class TestAsync:
                 target_switch.description["data_path"])
 
 
-class TestMain(TestCase):
+class TestMain:
     """Class to Integration test kytos/of_core main."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def commomn_patches(self, request):
+        """This function handles setup and cleanup for patches"""
+        # This fixture sets up the common patches,
+        # and a finalizer is added using addfinalizer to stop
+        # the common patches after each test. This ensures that the cleanup
+        # is performed after each test, and additional patch decorators
+        # can be used within individual test functions.
+
+        patcher = patch("kytos.core.helpers.run_on_thread", lambda x: x)
+        mock_patch = patcher.start()
+
+        _ = request.function.__name__
+
+        def cleanup():
+            patcher.stop()
+
+        request.addfinalizer(cleanup)
+        return mock_patch
+
+    # pylint: disable=attribute-defined-outside-init
+    def setup_method(self):
         """Execute steps before each tests.
         Set the server_name_url from kytos/of_core
         """
         self.server_name_url = 'http://localhost:8181/api/kytos/of_core'
 
-        patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
         # pylint: disable=import-outside-toplevel
         from napps.kytos.of_core.main import Main
-        self.addCleanup(patch.stopall)
 
         self.napp = Main(get_controller_mock())
         self.patched_events = []
@@ -297,7 +315,7 @@ class TestMain(TestCase):
 
         actual_events = self.napp.listeners()
         for _event in expected_events:
-            self.assertIn(_event, actual_events, str(_event))
+            assert _event in actual_events, str(_event)
 
     def test_handle_04_features_reply(self):
         """Test handling features reply message."""
@@ -323,10 +341,10 @@ class TestMain(TestCase):
         target_switch = '00:00:08:60:6e:7f:74:e7'
         of_event_01 = self.napp.controller.buffers.app.get()
         of_event_02 = self.napp.controller.buffers.app.get()
-        self.assertEqual("kytos/core.switch.new", of_event_01.name)
-        self.assertEqual(target_switch, of_event_01.content["switch"].dpid)
-        self.assertEqual("kytos/of_core.handshake.completed", of_event_02.name)
-        self.assertEqual(target_switch, of_event_02.content["switch"].dpid)
+        assert "kytos/core.switch.new" == of_event_01.name
+        assert target_switch == of_event_01.content["switch"].dpid
+        assert "kytos/of_core.handshake.completed" == of_event_02.name
+        assert target_switch == of_event_02.content["switch"].dpid
         expected = [
             'kytos/of_core.v0x04.messages.out.ofpt_set_config',
             'kytos/of_core.v0x04.messages.out.ofpt_multipart_request',
@@ -335,7 +353,7 @@ class TestMain(TestCase):
 
         for message in expected:
             of_event = self.napp.controller.buffers.msg_out.get()
-            self.assertEqual(of_event.name, message)
+            assert of_event.name == message
 
     def test_handle_features_request_sent(self):
         """Test handling features request sent message."""
@@ -353,8 +371,8 @@ class TestMain(TestCase):
                            content={'destination': switch.connection,
                                     'message': features_request})
         self.napp.handle_features_request_sent(event)
-        self.assertEqual(event.destination.protocol.state,
-                         'waiting_features_reply')
+        assert event.destination.protocol.state == \
+            'waiting_features_reply'
 
     def test_handle_echo_request(self):
         """Test handling echo request message."""
@@ -373,12 +391,12 @@ class TestMain(TestCase):
                                     'message': echo_request})
         self.napp.handle_echo_request(event)
         of_event = self.napp.controller.buffers.msg_out.get()
-        self.assertEqual(of_event.name,
-                         'kytos/of_core.v0x04.messages.out.ofpt_echo_reply')
+        assert of_event.name == \
+            'kytos/of_core.v0x04.messages.out.ofpt_echo_reply'
 
     def test_pack_generic_hello(self):
         """Test packing a generic hello message."""
         data = b'\x04\x00\x00\x10\x00\x00\x00\x3e'
         data += b'\x00\x01\x00\x08\x00\x00\x00\x10'
         generic_hello = GenericHello(packet=data, versions=b'\x04')
-        self.assertEqual(generic_hello.pack(), data)
+        assert generic_hello.pack() == data

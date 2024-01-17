@@ -1,9 +1,6 @@
 """Tests for high-level Flow of OpenFlow 1.3."""
-from unittest import TestCase
 from unittest.mock import MagicMock, patch
-
 import pytest
-
 from kytos.lib.helpers import get_connection_mock, get_switch_mock
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
 from napps.kytos.of_core.v0x04.flow import Match as Match04
@@ -40,10 +37,32 @@ def test_equivalent_flow_ids(flow1_dict, flow2_dict):
     assert flow1.id == flow2.id
 
 
-class TestFlowFactory(TestCase):
+class TestFlowFactory:
     """Test the FlowFactory class."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def commomn_patches(self, request):
+        """This function handles setup and cleanup for patches"""
+        # This fixture sets up the common patches,
+        # and a finalizer is added using addfinalizer to stop
+        # the common patches after each test. This ensures that the cleanup
+        # is performed after each test, and additional patch decorators
+        # can be used within individual test functions.
+
+        patcher = patch("kytos.core.helpers.run_on_thread", lambda x: x)
+        mock_patch = patcher.start()
+
+        _ = request.function.__name__
+
+        def cleanup():
+            patcher.stop()
+
+        request.addfinalizer(cleanup)
+        return mock_patch
+
+    # pylint: disable=attribute-defined-outside-init
+    # pylint: disable=import-outside-toplevel
+    def setup_method(self):
         """Execute steps before each tests.
         Set the server_name_url from kytos/of_core
         """
@@ -51,10 +70,7 @@ class TestFlowFactory(TestCase):
         self.switch_v0x04.connection = get_connection_mock(
             0x04, get_switch_mock("00:00:00:00:00:00:00:04"))
 
-        patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
-        # pylint: disable=import-outside-toplevel
         from napps.kytos.of_core.flow import FlowFactory
-        self.addCleanup(patch.stopall)
 
         self.factory = FlowFactory()
 
@@ -72,7 +88,7 @@ class TestFlowFactory(TestCase):
         assert self.factory.get_class(switch, Flow04) == Flow04
 
 
-class TestFlow(TestCase):
+class TestFlow:
     """Test OF flow abstraction."""
 
     mock_switch = get_switch_mock("00:00:00:00:00:00:00:01")
@@ -152,48 +168,46 @@ class TestFlow(TestCase):
         actual = flow.as_dict()
         del actual['id']
         del actual['stats']
-        self.assertDictEqual(self.requested_instructions, actual)
+        assert self.requested_instructions == actual
 
+    @pytest.mark.parametrize("flow_class", [Flow04])
     @patch('napps.kytos.of_core.flow.v0x04')
     @patch('napps.kytos.of_core.flow.json.dumps')
-    def test_flow_mod(self, *args):
+    def test_flow_mod(self, mock_json, _, flow_class):
         """Convert a dict to flow and vice-versa."""
-        (mock_json, _,) = args
         dpid = "00:00:00:00:00:00:00:01"
         mock_json.return_value = str(self.requested)
-        for flow_class, version, expected in \
-            [
-                (Flow04, 0x04, self.expected_13)]:
-            with self.subTest(flow_class=flow_class):
-                mock_switch = get_switch_mock(dpid, version)
-                mock_switch.id = dpid
-                flow = flow_class.from_dict(self.requested, mock_switch)
-                actual = flow.as_dict()
-                del actual['id']
-                self.assertDictEqual(expected, actual)
+        version = 0x04
+        expected = self.expected_13
+        mock_switch = get_switch_mock(dpid, version)
+        mock_switch.id = dpid
+        flow = flow_class.from_dict(self.requested, mock_switch)
+        actual = flow.as_dict()
+        del actual['id']
+        assert expected == actual
 
+    @pytest.mark.parametrize("flow_class", [Flow04])
     @patch('napps.kytos.of_core.flow.FlowBase._as_of_flow_mod')
-    def test_of_flow_mod(self, mock_flow_mod):
+    def test_of_flow_mod(self, mock_flow_mod, flow_class):
         """Test convertion from Flow to OFFlow."""
-        with self.subTest(flow_class=Flow04):
-            flow = Flow04.from_dict(self.requested, self.mock_switch)
-            flow.as_of_add_flow_mod()
-            mock_flow_mod.assert_called()
-            flow.as_of_delete_flow_mod()
-            mock_flow_mod.assert_called()
+        flow = flow_class.from_dict(self.requested, self.mock_switch)
+        flow.as_of_add_flow_mod()
+        mock_flow_mod.assert_called()
+        flow.as_of_delete_flow_mod()
+        mock_flow_mod.assert_called()
 
     # pylint: disable = protected-access
-    def test_as_of_flow_mod(self):
+    @pytest.mark.parametrize("flow_class", [Flow04])
+    def test_as_of_flow_mod(self, flow_class):
         """Test _as_of_flow_mod."""
         mock_command = MagicMock()
-        with self.subTest(flow_class=Flow04):
-            flow_mod = Flow04.from_dict(self.requested, self.mock_switch)
-            response = flow_mod._as_of_flow_mod(mock_command)
-            self.assertEqual(response.cookie, self.requested['cookie'])
-            self.assertEqual(response.idle_timeout,
-                             self.requested['idle_timeout'])
-            self.assertEqual(response.hard_timeout,
-                             self.requested['hard_timeout'])
+        flow_mod = flow_class.from_dict(self.requested, self.mock_switch)
+        response = flow_mod._as_of_flow_mod(mock_command)
+        assert response.cookie == self.requested['cookie']
+        assert response.idle_timeout == \
+            self.requested['idle_timeout']
+        assert response.hard_timeout == \
+            self.requested['hard_timeout']
 
     @staticmethod
     def test_match_id():
@@ -218,10 +232,11 @@ class TestFlow(TestCase):
         ).match_id
 
 
-class TestFlowBase(TestCase):
+class TestFlowBase:
     """Test FlowBase Class."""
 
-    def test__eq__success_with_equal_flows(self):
+    @pytest.mark.parametrize("flow_class", [Flow04])
+    def test__eq__success_with_equal_flows(self, flow_class):
         """Test success case to __eq__ override with equal flows."""
         mock_switch = get_switch_mock("00:00:00:00:00:00:00:01")
 
@@ -240,12 +255,12 @@ class TestFlowBase(TestCase):
                      'stats': {}
                      }
 
-        with self.subTest(flow_class=Flow04):
-            flow_1 = Flow04.from_dict(flow_dict, mock_switch)
-            flow_2 = Flow04.from_dict(flow_dict, mock_switch)
-            self.assertEqual(flow_1 == flow_2, True)
+        flow_1 = flow_class.from_dict(flow_dict, mock_switch)
+        flow_2 = flow_class.from_dict(flow_dict, mock_switch)
+        assert flow_1 == flow_2
 
-    def test__eq__success_with_different_flows(self):
+    @pytest.mark.parametrize("flow_class", [Flow04])
+    def test__eq__success_with_different_flows(self, flow_class):
         """Test success case to __eq__ override with different flows."""
         mock_switch = get_switch_mock("00:00:00:00:00:00:00:01")
 
@@ -279,12 +294,12 @@ class TestFlowBase(TestCase):
                        'stats': {}
                        }
 
-        with self.subTest(flow_class=Flow04):
-            flow_1 = Flow04.from_dict(flow_dict_1, mock_switch)
-            flow_2 = Flow04.from_dict(flow_dict_2, mock_switch)
-            self.assertEqual(flow_1 == flow_2, False)
+        flow_1 = flow_class.from_dict(flow_dict_1, mock_switch)
+        flow_2 = flow_class.from_dict(flow_dict_2, mock_switch)
+        assert flow_1 != flow_2
 
-    def test__eq__fail(self):
+    @pytest.mark.parametrize("flow_class", [Flow04])
+    def test__eq__fail(self, flow_class):
         """Test the case where __eq__ receives objects with different types."""
         mock_switch = get_switch_mock("00:00:00:00:00:00:00:01")
 
@@ -303,8 +318,7 @@ class TestFlowBase(TestCase):
                      'stats': {}
                      }
 
-        with self.subTest(flow_class=Flow04):
-            flow_1 = Flow04.from_dict(flow_dict, mock_switch)
-            flow_2 = "any_string_object"
-            with self.assertRaises(ValueError):
-                return flow_1 == flow_2
+        flow_1 = flow_class.from_dict(flow_dict, mock_switch)
+        flow_2 = "any_string_object"
+        with pytest.raises(ValueError):
+            return flow_1 == flow_2

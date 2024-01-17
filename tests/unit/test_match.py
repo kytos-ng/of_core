@@ -1,11 +1,11 @@
 """Test Match abstraction for v0x04."""
-from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from napps.kytos.of_core.v0x04.flow import Match as Match04
+import pytest
 
 
-class TestMatch(TestCase):
+class TestMatch:
     """Tests for the Match class."""
 
     EXPECTED = {
@@ -55,12 +55,12 @@ class TestMatch(TestCase):
     }
     EXPECTED_OF_13.update(EXPECTED)
 
-    def test_all_fields(self):
+    @pytest.mark.parametrize("match_class", [Match04])
+    def test_all_fields(self, match_class):
         """Test all match fields from and to dict."""
-        with self.subTest(match_class=Match04):
-            match = Match04.from_dict(self.EXPECTED)
-            actual = match.as_dict()
-            self.assertDictEqual(self.EXPECTED, actual)
+        match = match_class.from_dict(self.EXPECTED)
+        actual = match.as_dict()
+        assert self.EXPECTED == actual
 
     @patch('napps.kytos.of_core.v0x04.flow.MatchFieldFactory')
     def test_from_of_match(self, mock_factory):
@@ -74,19 +74,17 @@ class TestMatch(TestCase):
         type(mock_match).oxm_match_fields = (PropertyMock(
                                              return_value=[[mock_tlv]]))
         response = Match04.from_of_match(mock_match)
-        self.assertEqual(mock_factory.from_of_tlv.call_count, 1)
-        self.assertIsInstance(response, Match04)
+        assert mock_factory.from_of_tlv.call_count == 1
+        assert isinstance(response, Match04)
 
     def test_match_tlv(self):
         """Test OF 1.3 matches"""
         match = Match04.from_dict(self.EXPECTED_OF_13)
-        self.assertDictEqual(
-            Match04.from_of_match(match.as_of_match()).as_dict(),
+        assert Match04.from_of_match(match.as_of_match()).as_dict() == \
             self.EXPECTED_OF_13
-        )
 
     def test_match04_as_dict(self) -> None:
         """Test match04 as_dict."""
         match_values = {'in_port': 1, 'dl_vlan': 2}
         match_04 = Match04(**match_values)
-        self.assertEqual(len(match_04.as_dict()), len(match_values))
+        assert len(match_04.as_dict()) == len(match_values)
