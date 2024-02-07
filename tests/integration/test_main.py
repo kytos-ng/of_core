@@ -339,7 +339,7 @@ class TestMain:
                                     'message': features_reply})
         self.napp.handle_features_reply(event)
         target_switch = '00:00:08:60:6e:7f:74:e7'
-        of_event_01 = self.napp.controller.buffers.app.get()
+        of_event_01 = self.napp.controller.buffers.conn.get()
         of_event_02 = self.napp.controller.buffers.app.get()
         assert "kytos/core.switch.new" == of_event_01.name
         assert target_switch == of_event_01.content["switch"].dpid
