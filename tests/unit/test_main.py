@@ -768,9 +768,8 @@ class TestMain:
         assert mock_interface.call_args[1]["speed"] == speed
 
         mock_source.switch.get_interface_by_port_no.return_value = mock_intf
-        assert mock_intf.speed != speed
         self.napp.update_port_status(mock_port_status, mock_source)
-        assert mock_intf.speed == speed
+        mock_intf.set_custom_speed.assert_called_with(speed)
         mock_port_mod.assert_called()
         mock_buffer_put.assert_called()
 

@@ -672,7 +672,7 @@ class Main(KytosNApp):
                 interface.name = port.name.value
                 interface.address = port.hw_addr.value
                 interface.features = port.curr
-                interface.speed = port.curr_speed.value
+                interface.set_custom_speed(port.curr_speed.value)
             else:
                 interface = Interface(name=port.name.value,
                                       address=port.hw_addr.value,
