@@ -747,6 +747,8 @@ class TestMain:
         mock_source = MagicMock()
         mock_port = MagicMock()
         mock_port.state.value = PortState.OFPPS_LIVE
+        speed = 10000000
+        mock_port.curr_speed.value = speed
 
         mock_port_status.reason.value.side_effect = [0, 1, 2]
         mock_port_status.reason.enum_ref(0).name = 'OFPPR_ADD'
@@ -754,6 +756,7 @@ class TestMain:
         self.napp.update_port_status(mock_port_status, mock_source)
         mock_interface.assert_called()
         assert mock_intf.activate.call_count == 1
+        assert mock_interface.call_args[1]["speed"] == speed
 
         # check OFPRR_MODIFY
         mock_port_status.reason.enum_ref(1).name = 'OFPPR_MODIFY'
@@ -762,9 +765,12 @@ class TestMain:
         mock_port_mod.assert_called()
         mock_buffer_put.assert_called()
         assert mock_intf.activate.call_count == 2
+        assert mock_interface.call_args[1]["speed"] == speed
 
-        mock_source.switch.get_interface_by_port_no.return_value = MagicMock()
+        mock_source.switch.get_interface_by_port_no.return_value = mock_intf
+        assert mock_intf.speed != speed
         self.napp.update_port_status(mock_port_status, mock_source)
+        assert mock_intf.speed == speed
         mock_port_mod.assert_called()
         mock_buffer_put.assert_called()
 
