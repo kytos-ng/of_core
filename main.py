@@ -657,6 +657,7 @@ class Main(KytosNApp):
                                   port_number=port_no,
                                   switch=source.switch,
                                   state=port.state.value,
+                                  speed=port.curr_speed.value,
                                   features=port.curr)
             source.switch.update_interface(interface)
             try_to_activate_interface(interface, port)
@@ -671,12 +672,14 @@ class Main(KytosNApp):
                 interface.name = port.name.value
                 interface.address = port.hw_addr.value
                 interface.features = port.curr
+                interface.set_custom_speed(port.curr_speed.value)
             else:
                 interface = Interface(name=port.name.value,
                                       address=port.hw_addr.value,
                                       port_number=port_no,
                                       switch=source.switch,
                                       state=port.state.value,
+                                      speed=port.curr_speed.value,
                                       features=port.curr)
             source.switch.update_interface(interface)
             try_to_activate_interface(interface, port)

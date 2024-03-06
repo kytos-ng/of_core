@@ -9,6 +9,7 @@ All notable changes to the of_core NApp will be documented in this file.
 Fixed
 =====
 - Multipart replies clean up now happens before connection gets established to be safer
+- Set ``interface.speed`` on ``PortStatus`` reason ``OFPPR_ADD`` and ``OFPPR_MODIFY``
 
 
 [2023.1.0] - 2023-06-05
