@@ -1,6 +1,6 @@
 """Pytest conftest."""
 # pylint: disable=redefined-outer-name
-
+import asyncio
 import pytest
 
 from kytos.lib.helpers import get_controller_mock, get_switch_mock
@@ -8,8 +8,9 @@ from napps.kytos.of_core.main import Main
 
 
 @pytest.fixture(autouse=True)
-def ev_loop(monkeypatch, event_loop) -> None:
+def ev_loop(monkeypatch) -> None:
     """asyncio event loop autouse fixture."""
+    event_loop = asyncio.get_running_loop()
     monkeypatch.setattr("asyncio.get_running_loop", lambda: event_loop)
     yield event_loop
 
