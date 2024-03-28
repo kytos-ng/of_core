@@ -23,7 +23,7 @@ def get_switch_mock(dpid="00:00:00:00:00:00:00:01"):
 
 def get_connection_mock(of_version, target_switch, state=ConnectionState.NEW):
     """Return a connection mock."""
-    connection = Connection(Mock(), Mock(), Mock())
+    connection = Connection(Mock(), Mock(), Mock(), Mock())
     connection.switch = target_switch
     connection.state = state
     connection.protocol.version = of_version

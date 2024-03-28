@@ -1,5 +1,5 @@
 """of_core utility functions and classes."""
-
+# pylint: disable=broad-exception-raised
 import struct
 from collections import OrderedDict
 

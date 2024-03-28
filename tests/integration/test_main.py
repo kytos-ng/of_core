@@ -28,7 +28,7 @@ class TestAsync:
         self.napp = Main(get_controller_mock())
 
     @patch("time.sleep")
-    def test_execute(self, mock_sleep):
+    async def test_execute(self, mock_sleep):
         """Test 'execute' main method."""
         self.napp.controller._buffers = KytosBuffers()
         dpid_01 = "00:00:00:00:00:00:00:01"
@@ -317,7 +317,7 @@ class TestMain:
         for _event in expected_events:
             assert _event in actual_events, str(_event)
 
-    def test_handle_04_features_reply(self):
+    async def test_handle_04_features_reply(self):
         """Test handling features reply message."""
         self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_features_reply'
@@ -374,7 +374,7 @@ class TestMain:
         assert event.destination.protocol.state == \
             'waiting_features_reply'
 
-    def test_handle_echo_request(self):
+    async def test_handle_echo_request(self):
         """Test handling echo request message."""
         self.napp.controller._buffers = KytosBuffers()
         event_name = 'kytos/of_core.v0x04.messages.in.ofpt_echo_request'
