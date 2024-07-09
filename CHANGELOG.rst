@@ -18,7 +18,7 @@ Fixed
 =====
 - Multipart replies clean up now happens before connection gets established to be safer
 - Set ``interface.speed`` on ``PortStatus`` reason ``OFPPR_ADD`` and ``OFPPR_MODIFY``
-
+- cookie is no longer a factor of a Flow match_id, just so equivalent matches but different cookies don't get different representations
 
 [2023.1.0] - 2023-06-05
 ***********************
