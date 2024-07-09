@@ -115,7 +115,6 @@ class FlowBase(ABC):  # pylint: disable=too-many-instance-attributes
             'table_id': self.table_id,
             'match': self.match.as_dict(),
             'priority': self.priority,
-            'cookie': self.cookie,
         }
         flow_str = json.dumps(flow_match_fields, sort_keys=True)
         md5sum = md5()
