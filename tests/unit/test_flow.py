@@ -218,6 +218,10 @@ class TestFlow:
         flow_one = {"match": Match04(**{"in_port": 1, "dl_vlan": 2})}
         flow_two = {"match": Match04(**{"in_port": 1, "dl_vlan": 2})}
         flow_three = {"match": Match04(**{"in_port": 1, "dl_vlan": 3})}
+        flow_four = {"match": Match04(**{"in_port": 1, "dl_vlan": 2}),
+                     "cookie": 0x10}
+        flow_five = {"match": Match04(**{"in_port": 1, "dl_vlan": 2}),
+                     "cookie": 0x20}
 
         assert Flow04(mock_switch, **flow_one).match_id == Flow04(
             mock_switch, **flow_two
@@ -226,9 +230,13 @@ class TestFlow:
             mock_switch, **flow_three
         ).match_id
 
+        # cookie shouldn't matter for match_id
         flow_two["cookie"] = 0x10
-        assert Flow04(mock_switch, **flow_one).match_id != Flow04(
+        assert Flow04(mock_switch, **flow_one).match_id == Flow04(
             mock_switch, **flow_two
+        ).match_id
+        assert Flow04(mock_switch, **flow_four).match_id == Flow04(
+            mock_switch, **flow_five
         ).match_id
 
 
