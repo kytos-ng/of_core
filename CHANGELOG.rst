@@ -6,7 +6,7 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
-[2023.4.0] - 2024-07-23
+[2024.1.0] - 2024-07-23
 ***********************
 
 Changed
