@@ -6,10 +6,17 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2023.4.0] - 2024-07-23
+***********************
+
 Changed
 =======
 - Updated python environment installation from 3.9 to 3.11
-- Updated test dependencies
+
+Fixed
+=====
+- Set ``interface.speed`` on ``PortStatus`` reason ``OFPPR_ADD`` and ``OFPPR_MODIFY``
+- cookie is no longer a factor of a Flow match_id, just so equivalent matches but different cookies don't get different representations
 
 [2023.2.0] - 2024-02-16
 ***********************
@@ -17,8 +24,6 @@ Changed
 Fixed
 =====
 - Multipart replies clean up now happens before connection gets established to be safer
-- Set ``interface.speed`` on ``PortStatus`` reason ``OFPPR_ADD`` and ``OFPPR_MODIFY``
-- cookie is no longer a factor of a Flow match_id, just so equivalent matches but different cookies don't get different representations
 
 [2023.1.0] - 2023-06-05
 ***********************
