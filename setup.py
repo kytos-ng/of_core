@@ -111,7 +111,8 @@ class TestCoverage(Test):
         """Run tests quietly and display coverage report."""
         # pylint: disable=fixme
         # TODO revert this commit when issue 68 gets fixed
-        cmd = f'python3 -m pytest --cov=. tests/ {self.get_args()}'
+        cmd = "python3 -m pytest --cov=. tests/ --cov-report term-missing"
+        cmd += f" {self.get_args()}"
         try:
             check_call(cmd, shell=True)
         except CalledProcessError as exc:
