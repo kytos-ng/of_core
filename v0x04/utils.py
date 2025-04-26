@@ -1,7 +1,7 @@
 """Utilities module for of_core OpenFlow v0x04 operations."""
 from napps.kytos.of_core.utils import aemit_message_out, emit_message_out
 from pyof.v0x04.common.action import ControllerMaxLen
-from pyof.v0x04.common.port import PortConfig, PortNo, PortState
+from pyof.v0x04.common.port import PortNo, PortState
 from pyof.v0x04.controller2switch.common import ConfigFlag, MultipartType
 from pyof.v0x04.controller2switch.multipart_request import (FlowStatsRequest,
                                                             MultipartRequest,
@@ -9,8 +9,6 @@ from pyof.v0x04.controller2switch.multipart_request import (FlowStatsRequest,
 from pyof.v0x04.controller2switch.set_config import SetConfig
 from pyof.v0x04.symmetric.echo_request import EchoRequest
 from pyof.v0x04.symmetric.hello import Hello
-
-from kytos.core.events import KytosEvent
 
 
 def try_to_activate_interface(interface, port):
@@ -126,49 +124,6 @@ def handle_features_reply(controller, event):
     switch.update_features(features_reply)
 
     return switch
-
-
-async def handle_port_desc(controller, switch, port_list):
-    """Update interfaces on switch based on port_list information."""
-    interfaces = []
-    for port in port_list:
-        config = port.config
-        if (port.supported == 0 and
-                port.curr_speed.value == 0 and
-                port.max_speed.value == 0):
-            config = PortConfig.OFPPC_NO_FWD
-
-        interface = switch.update_or_create_interface(
-                        port.port_no.value,
-                        name=port.name.value,
-                        address=port.hw_addr.value,
-                        state=port.state.value,
-                        features=port.curr,
-                        config=config,
-                        speed=port.curr_speed.value)
-        try_to_activate_interface(interface, port)
-        interfaces.append(interface)
-
-        event_name = 'kytos/of_core.switch.interface.created'
-        interface_event = KytosEvent(name=event_name,
-                                     content={'interface': interface})
-        port_event = KytosEvent(name='kytos/of_core.switch.port.created',
-                                content={
-                                    'switch': switch.id,
-                                    'port': port.port_no.value,
-                                    'port_description': {
-                                        'alias': port.name.value,
-                                        'mac': port.hw_addr.value,
-                                        'state': port.state.value
-                                        }
-                                    })
-        await controller.buffers.app.aput(port_event)
-        await controller.buffers.app.aput(interface_event)
-    if interfaces:
-        event_name = 'kytos/of_core.switch.interfaces.created'
-        interface_event = KytosEvent(name=event_name,
-                                     content={'interfaces': interfaces})
-        await controller.buffers.app.aput(interface_event)
 
 
 def send_echo(controller, switch):
