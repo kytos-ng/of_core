@@ -69,6 +69,7 @@ class TestNApp:
         mock_process_multipart_messages.assert_called_with(mock_connection,
                                                            messages)
 
+    # pylint: disable=too-many-locals
     @patch('napps.kytos.of_core.main.Main.process_multipart_messages')
     @patch('napps.kytos.of_core.main.of_slicer')
     @patch('napps.kytos.of_core.main.Main._negotiate')
@@ -76,7 +77,7 @@ class TestNApp:
     async def test_on_raw_in_local_seq_numbers(
         self,
         mock_aemit_message_in,
-        mock_negotiate,
+        _,
         mock_of_slicer,
         mock_process_multipart_messages,
         napp,
@@ -112,7 +113,6 @@ class TestNApp:
                                                        port_status_mock]
         mock_connection.is_new.side_effect = [False, False, False]
         mock_process_multipart_messages.call_count = 0
-        napp.aemit_message_in = AsyncMock()
 
         assert not napp._msg_seq_cnt
         assert not napp._xid_seq_num
@@ -127,7 +127,7 @@ class TestNApp:
         # the port status xid mapped value must be to last counted val
         assert napp._xid_seq_num[mock_switch.id][port_status_xid] == 3
 
-        napp.aemit_message_in.assert_called()
+        mock_aemit_message_in.assert_called()
         mock_process_multipart_messages.assert_called()
 
     @patch('pyof.utils.v0x04.asynchronous.error_msg.ErrorMsg')
