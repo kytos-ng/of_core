@@ -667,6 +667,10 @@ class Main(KytosNApp):
         port_no = port.port_no.value
         event_name = 'kytos/of_core.switch.interface.'
 
+        # pylint: disable=protected-access
+        state_desc = {v: k for k, v in PortState._enum.items()}
+        # pylint: enable=protected-access
+
         switch = source.switch
         interface = switch.get_interface_by_port_no(port_no)
         xid_seq_num = self._xid_seq_num[switch.id][int(port_status.header.xid)]
@@ -674,6 +678,11 @@ class Main(KytosNApp):
             interface and
             xid_seq_num < self._intf_state_seen_num[switch.id][interface.id]
         ):
+            state = state_desc.get(port.state.value, port.state.value)
+            log.info(
+                f"Skipping PortStatus {reason} on intf {interface}, "
+                f"state: {state}, xid {xid_seq_num}/0x{xid_seq_num:x}"
+            )
             return
 
         if reason == 'OFPPR_ADD':
@@ -723,9 +732,6 @@ class Main(KytosNApp):
         event = KytosEvent(name=event_name, content=content)
         self.controller.buffers.app.put(event)
 
-        # pylint: disable=protected-access
-        state_desc = {v: k for k, v in PortState._enum.items()}
-        # pylint: enable=protected-access
         state = state_desc.get(port.state.value, port.state.value)
         msg = 'PortStatus %s interface %s:%s state %s'
         log.info(msg, status, source.switch.id, port_no, state)
@@ -749,6 +755,14 @@ class Main(KytosNApp):
                 intf and
                 xid_seq_num < self._intf_state_seen_num[switch.id][intf.id]
             ):
+                # pylint: disable=protected-access
+                state_desc = {v: k for k, v in PortState._enum.items()}
+                # pylint: enable=protected-access
+                state = state_desc.get(port.state.value, port.state.value)
+                log.info(
+                    f"Skipping PortDesc on intf {intf}, state: {state}, "
+                    f"xid {xid_seq_num}/0x{xid_seq_num:x}"
+                )
                 continue
 
             interface = switch.update_or_create_interface(
