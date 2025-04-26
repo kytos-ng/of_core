@@ -11,7 +11,7 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Fixed
 =====
-- Added Interface.state local sequence update counters to skip unordered late assembled PortDesc MULTIPART_REPLY and PORT_STATUS
+- Added Interface.state local sequence update counters to skip unordered late assembled PortDesc MULTIPART_REPLY and PORT_STATUS. This feature is enabled by default via ``settings.SKIP_INTF_STATE_LATE_UPDATES = True``.
 
 [2025.1.0] - 2025-04-14
 ***********************
