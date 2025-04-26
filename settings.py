@@ -21,3 +21,7 @@ SEND_ECHO_REQUESTS = True
 
 #: Send Set Config messages right after the OpenFlow handshake
 SEND_SET_CONFIG = True
+
+# Skip late interface state PortDesc and PortStatus updates; Feature flag.
+# This option will be eventually removed and will always be True
+SKIP_INTF_STATE_LATE_UPDATES = True
