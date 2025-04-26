@@ -69,6 +69,67 @@ class TestNApp:
         mock_process_multipart_messages.assert_called_with(mock_connection,
                                                            messages)
 
+    @patch('napps.kytos.of_core.main.Main.process_multipart_messages')
+    @patch('napps.kytos.of_core.main.of_slicer')
+    @patch('napps.kytos.of_core.main.Main._negotiate')
+    @patch('napps.kytos.of_core.main.Main.aemit_message_in')
+    async def test_on_raw_in_local_seq_numbers(
+        self,
+        mock_aemit_message_in,
+        mock_negotiate,
+        mock_of_slicer,
+        mock_process_multipart_messages,
+        napp,
+    ):
+        """Test on_raw_in local sequence numbers."""
+
+        mock_packets = MagicMock()
+        mock_data = MagicMock()
+        mock_connection = MagicMock()
+        mock_connection.is_new.side_effect = [True, False, True, False]
+        mock_connection.is_during_setup.return_value = False
+        mock_switch = MagicMock()
+        mock_switch.id = "1"
+        mock_connection.switch = mock_switch
+        mock_of_slicer.return_value = [[mock_packets, mock_packets,
+                                        mock_packets], b'']
+        name = 'kytos/core.openflow.raw.in'
+        content = {'source': mock_connection, 'new_data': mock_data}
+        mock_event = get_kytos_event_mock(name=name, content=content)
+
+        # test message type OFPT_MULTIPART_REPLY and OFPT_PORT_STATUS
+        multipart_mock = MagicMock()
+        multipart_mock.header.xid.value = 0xABC
+        multipart_xid = multipart_mock.header.xid.value
+        multipart_mock.header.message_type = Type.OFPT_MULTIPART_REPLY
+        port_status_mock = MagicMock()
+        port_status_mock.header.xid.value = 0xABE
+        port_status_xid = port_status_mock.header.xid.value
+        port_status_mock.header.message_type = Type.OFPT_PORT_STATUS
+
+        mock_connection.protocol.unpack.side_effect = [multipart_mock,
+                                                       multipart_mock,
+                                                       port_status_mock]
+        mock_connection.is_new.side_effect = [False, False, False]
+        mock_process_multipart_messages.call_count = 0
+        napp.aemit_message_in = AsyncMock()
+
+        assert not napp._msg_seq_cnt
+        assert not napp._xid_seq_num
+        await napp.on_raw_in(mock_event)
+        assert napp._msg_seq_cnt
+        assert mock_switch.id in napp._msg_seq_cnt
+
+        # three messages must been counted
+        assert napp._msg_seq_cnt[mock_switch.id] == 3
+        # the multipart xid mapped value must be to last counted multipart val
+        assert napp._xid_seq_num[mock_switch.id][multipart_xid] == 2
+        # the port status xid mapped value must be to last counted val
+        assert napp._xid_seq_num[mock_switch.id][port_status_xid] == 3
+
+        napp.aemit_message_in.assert_called()
+        mock_process_multipart_messages.assert_called()
+
     @patch('pyof.utils.v0x04.asynchronous.error_msg.ErrorMsg')
     async def test_fail_negotiation(
         self,
@@ -250,7 +311,8 @@ class TestNApp:
         mock_intf.deactivate.assert_called()
         assert napp.controller.buffers.app.aput.call_count == 3
 
-    async def test_handle_port_desc_seen_state_early_ret(self,
+    @patch('napps.kytos.of_core.main.log')
+    async def test_handle_port_desc_seen_state_early_ret(self, mock_log,
                                                          napp, switch_one):
         """Test Handle Port Desc seen state early return ."""
         switch_one.id = switch_one.dpid
@@ -273,6 +335,7 @@ class TestNApp:
         mock_event_buffer.assert_not_called()
         mock_intf.deactivate.assert_not_called()
         assert not napp.controller.buffers.app.aput.call_count
+        mock_log.info.assert_called()
 
     @patch('napps.kytos.of_core.main.log')
     @patch('napps.kytos.of_core.main.Main._update_switch_flows')
@@ -444,9 +507,11 @@ class TestNApp:
         """Test on_openflow_connection_error no switch."""
         event = MagicMock()
         napp.pop_multipart_replies = MagicMock()
+        napp.pop_seq_msg_counters = MagicMock()
         event.content["destination"].switch = None
         await napp.on_openflow_connection_error(event)
         assert napp.pop_multipart_replies.call_count == 0
+        assert napp.pop_seq_msg_counters.call_count == 0
 
 
 # pylint: disable=attribute-defined-outside-init
@@ -825,8 +890,10 @@ class TestMain:
         assert not napp._xid_seq_num["dpid"]["xid"]
         assert not napp._msg_seq_cnt["dpid"]
 
+    @patch('napps.kytos.of_core.main.log')
     @patch('napps.kytos.of_core.main.Interface')
-    def test_update_port_status_port_state_early_ret(self, mock_interface):
+    def test_update_port_status_port_state_early_ret(self, mock_interface,
+                                                     mock_log):
         """Test update_port_status state early return."""
         mock_buffer_put = MagicMock()
         self.napp.controller._buffers.app.put = mock_buffer_put
@@ -851,4 +918,5 @@ class TestMain:
         mock_port_status.desc = mock_port
         self.napp.update_port_status(mock_port_status, mock_source)
         mock_interface.assert_not_called()
-        assert not mock_intf.activate.call_count == 1
+        assert not mock_intf.activate.call_count
+        mock_log.info.assert_called()
