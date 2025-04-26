@@ -52,7 +52,7 @@ class Main(KytosNApp):
         self._msg_seq_types = set(
             [Type.OFPT_MULTIPART_REPLY, Type.OFPT_PORT_STATUS]
         )
-        # State last seen local sequence number by switch by intferface id
+        # State last seen local sequence number by switch by interface id
         self._intf_state_seen_num = defaultdict(lambda: defaultdict(int))
         # Local sequence number by switch by xid
         self._xid_seq_num = defaultdict(lambda: defaultdict(int))
