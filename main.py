@@ -8,8 +8,7 @@ from napps.kytos.of_core import settings
 from napps.kytos.of_core.table import TableStats
 from napps.kytos.of_core.utils import (GenericHello, NegotiationException,
                                        aemit_message_in, aemit_message_out,
-                                       emit_message_in, emit_message_out,
-                                       of_slicer)
+                                       emit_message_out, of_slicer)
 from napps.kytos.of_core.v0x04 import utils as of_core_v0x04_utils
 from napps.kytos.of_core.v0x04.flow import Flow as Flow04
 from napps.kytos.of_core.v0x04.utils import try_to_activate_interface
@@ -17,7 +16,7 @@ from pyof.foundation.exceptions import UnpackException
 from pyof.foundation.network_types import Ethernet, EtherType
 from pyof.utils import PYOF_VERSION_LIBS, unpack
 from pyof.v0x04.common.header import Type
-from pyof.v0x04.common.port import PortState
+from pyof.v0x04.common.port import PortConfig, PortState
 from pyof.v0x04.controller2switch.common import MultipartType
 from pyof.v0x04.controller2switch.features_reply import Capabilities
 
@@ -48,6 +47,17 @@ class Main(KytosNApp):
         self.of_core_version_utils = {0x04: of_core_v0x04_utils}
         self.execute_as_loop(settings.STATS_INTERVAL)
         self._connection_lock = defaultdict(asyncio.Lock)
+
+        # Message types that will be sequenced counted
+        self._msg_seq_types = set(
+            [Type.OFPT_MULTIPART_REPLY, Type.OFPT_PORT_STATUS]
+        )
+        # State last seen local sequence number by switch by intferface id
+        self._intf_state_seen_num = defaultdict(lambda: defaultdict(int))
+        # Local sequence number by switch by xid
+        self._xid_seq_num = defaultdict(lambda: defaultdict(int))
+        # Local sequence monotonic counter by switch
+        self._msg_seq_cnt = defaultdict(int)
 
         # Per switch delay to request flow/port stats, to avoid all request
         # being sent together and increase the overhead on the controller
@@ -148,6 +158,7 @@ class Main(KytosNApp):
         switch = version_utils.handle_features_reply(self.controller, event)
         switch.update_lastseen()
         self.pop_multipart_replies(switch)
+        self.pop_seq_msg_counters(switch)
 
         if (connection.is_during_setup() and
                 connection.protocol.state == 'waiting_features_reply'):
@@ -187,8 +198,7 @@ class Main(KytosNApp):
         elif reply.multipart_type == MultipartType.OFPMP_PORT_STATS:
             await self._handle_multipart_port_stats(reply, switch)
         elif reply.multipart_type == MultipartType.OFPMP_PORT_DESC:
-            await of_core_v0x04_utils.handle_port_desc(self.controller, switch,
-                                                       reply.body)
+            await self._handle_port_desc(switch, reply)
         elif reply.multipart_type == MultipartType.OFPMP_DESC:
             switch.update_description(reply.body)
 
@@ -322,7 +332,20 @@ class Main(KytosNApp):
 
                 try:
                     message = connection.protocol.unpack(packet)
-                    if message.header.message_type == Type.OFPT_ERROR:
+                    message_type = message.header.message_type
+                    if (
+                        switch
+                        and message_type in self._msg_seq_types
+                    ):
+                        self._msg_seq_cnt[switch.id] += 1
+                        self._xid_seq_num[switch.id][
+                            int(message.header.xid.value)
+                        ] = self._msg_seq_cnt[switch.id]
+
+                    if (
+                        switch
+                        and message.header.message_type == Type.OFPT_ERROR
+                    ):
                         log.error(f"OFPT_ERROR: type {message.error_type},"
                                   f" error code {message.code},"
                                   f" from switch {switch.id},"
@@ -389,20 +412,6 @@ class Main(KytosNApp):
             for message in msgs:
                 await self._handle_multipart_reply(message, switch)
                 await self.aemit_message_in(connection, message)
-
-    def emit_message_in(self, connection, message):
-        """Emit a KytosEvent for each incoming message.
-
-        Also update links and port status.
-        """
-        if not connection.is_alive():
-            return
-        emit_message_in(self.controller, connection, message)
-        msg_type = message.header.message_type.name.lower()
-        if msg_type == 'ofpt_port_status':
-            self.update_port_status(message, connection)
-        elif msg_type == 'ofpt_packet_in':
-            self.update_links(message, connection)
 
     async def aemit_message_in(self, connection, message):
         """Async emit a KytosEvent for each incoming message.
@@ -553,6 +562,12 @@ class Main(KytosNApp):
         self._multipart_replies_ports.pop(switch.id, None)
         self._multipart_replies_tables.pop(switch.id, None)
 
+    def pop_seq_msg_counters(self, switch) -> None:
+        """Pop switch sequenced messages counters."""
+        self._intf_state_seen_num.pop(switch.id, None)
+        self._xid_seq_num.pop(switch.id, None)
+        self._msg_seq_cnt.pop(switch.id, None)
+
     @alisten_to("kytos/core.openflow.connection.error")
     async def on_openflow_connection_error(self, event):
         """On openflow connection error try to pop multipart replies."""
@@ -560,6 +575,7 @@ class Main(KytosNApp):
         if not switch:
             return
         self.pop_multipart_replies(switch)
+        self.pop_seq_msg_counters(switch)
 
     def shutdown(self):
         """End of the application."""
@@ -625,6 +641,7 @@ class Main(KytosNApp):
             event = KytosEvent(name=event_name+status, content=event_content)
             self.controller.buffers.app.put(event)
 
+    # pylint: disable=too-many-locals
     def update_port_status(self, port_status, source):
         """Dispatch 'port.*' events.
 
@@ -649,6 +666,15 @@ class Main(KytosNApp):
         port = port_status.desc
         port_no = port.port_no.value
         event_name = 'kytos/of_core.switch.interface.'
+
+        switch = source.switch
+        interface = switch.get_interface_by_port_no(port_no)
+        xid_seq_num = self._xid_seq_num[switch.id][int(port_status.header.xid)]
+        if (
+            interface and
+            xid_seq_num < self._intf_state_seen_num[switch.id][interface.id]
+        ):
+            return
 
         if reason == 'OFPPR_ADD':
             status = 'created'
@@ -690,6 +716,7 @@ class Main(KytosNApp):
             interface = source.switch.get_interface_by_port_no(port_no)
             interface.deactivate()
 
+        self._intf_state_seen_num[switch.id][interface.id] = xid_seq_num
         event_name += status
         content = {'interface': interface}
 
@@ -702,6 +729,60 @@ class Main(KytosNApp):
         state = state_desc.get(port.state.value, port.state.value)
         msg = 'PortStatus %s interface %s:%s state %s'
         log.info(msg, status, source.switch.id, port_no, state)
+
+    async def _handle_port_desc(self, switch, reply):
+        """Update interfaces on switch based on port_list information."""
+        port_list = reply.body
+        interfaces = []
+        for port in port_list:
+            config = port.config
+            if (port.supported == 0 and
+                    port.curr_speed.value == 0 and
+                    port.max_speed.value == 0):
+                config = PortConfig.OFPPC_NO_FWD
+
+            port_no = port.port_no.value
+
+            intf = switch.get_interface_by_port_no(port_no)
+            xid_seq_num = self._xid_seq_num[switch.id][int(reply.header.xid)]
+            if (
+                intf and
+                xid_seq_num < self._intf_state_seen_num[switch.id][intf.id]
+            ):
+                continue
+
+            interface = switch.update_or_create_interface(
+                            port.port_no.value,
+                            name=port.name.value,
+                            address=port.hw_addr.value,
+                            state=port.state.value,
+                            features=port.curr,
+                            config=config,
+                            speed=port.curr_speed.value)
+            try_to_activate_interface(interface, port)
+            interfaces.append(interface)
+            self._intf_state_seen_num[switch.id][interface.id] = xid_seq_num
+
+            event_name = 'kytos/of_core.switch.interface.created'
+            interface_event = KytosEvent(name=event_name,
+                                         content={'interface': interface})
+            port_event = KytosEvent(name='kytos/of_core.switch.port.created',
+                                    content={
+                                        'switch': switch.id,
+                                        'port': port.port_no.value,
+                                        'port_description': {
+                                            'alias': port.name.value,
+                                            'mac': port.hw_addr.value,
+                                            'state': port.state.value
+                                            }
+                                        })
+            await self.controller.buffers.app.aput(port_event)
+            await self.controller.buffers.app.aput(interface_event)
+        if interfaces:
+            event_name = 'kytos/of_core.switch.interfaces.created'
+            interface_event = KytosEvent(name=event_name,
+                                         content={'interfaces': interfaces})
+            await self.controller.buffers.app.aput(interface_event)
 
 
 def _get_version_from_bitmask(message_versions):
