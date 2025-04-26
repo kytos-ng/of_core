@@ -6,6 +6,13 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2025.1.1] - 2025-04-26
+***********************
+
+Fixed
+=====
+- Added Interface.state local sequence update counters to skip unordered late assembled PortDesc MULTIPART_REPLY and PORT_STATUS
+
 [2025.1.0] - 2025-04-14
 ***********************
 
