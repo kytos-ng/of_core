@@ -1,5 +1,5 @@
 """Test v0x04.utils methods."""
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pyof.v0x04.common.port import PortNo, PortState
@@ -7,7 +7,7 @@ from pyof.v0x04.common.port import PortNo, PortState
 from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
                                get_switch_mock)
 from napps.kytos.of_core.v0x04.utils import (handle_features_reply,
-                                             handle_port_desc, say_hello,
+                                             say_hello,
                                              send_desc_request, send_echo,
                                              send_port_request,
                                              send_set_config,
@@ -19,37 +19,6 @@ async def test_say_hello(mock_aemit_message_out, controller, switch_one):
     """Test say_hello."""
     await say_hello(controller, switch_one)
     mock_aemit_message_out.assert_called()
-
-
-async def test_handle_port_desc(controller, switch_one):
-    """Test Handle Port Desc."""
-    mock_event_buffer = AsyncMock()
-    controller.buffers.app.aput = mock_event_buffer
-    mock_port = MagicMock()
-    mock_port.port_no.value = PortNo.OFPP_LOCAL.value
-    mock_intf = MagicMock()
-    switch_one.update_or_create_interface.return_value = mock_intf
-    await handle_port_desc(controller, switch_one, [mock_port])
-    assert switch_one.update_or_create_interface.call_count == 1
-    mock_event_buffer.assert_called()
-    mock_intf.activate.assert_called()
-    assert controller.buffers.app.aput.call_count == 3
-
-
-async def test_handle_port_desc_inactive(controller, switch_one):
-    """Test Handle Port Desc inactive interface."""
-    mock_event_buffer = AsyncMock()
-    controller.buffers.app.aput = mock_event_buffer
-    mock_port = MagicMock()
-    mock_port.port_no.value = 1
-    mock_port.state.value = PortState.OFPPS_LINK_DOWN
-    mock_intf = MagicMock()
-    switch_one.update_or_create_interface.return_value = mock_intf
-    await handle_port_desc(controller, switch_one, [mock_port])
-    assert switch_one.update_or_create_interface.call_count == 1
-    mock_event_buffer.assert_called()
-    mock_intf.deactivate.assert_called()
-    assert controller.buffers.app.aput.call_count == 3
 
 
 @pytest.mark.parametrize(

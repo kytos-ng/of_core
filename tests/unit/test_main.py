@@ -5,7 +5,8 @@ from unittest.mock import (AsyncMock, MagicMock, PropertyMock, create_autospec,
 import pytest
 from napps.kytos.of_core.utils import NegotiationException
 from pyof.foundation.network_types import Ethernet
-from pyof.v0x04.common.port import PortState
+from pyof.v0x04.common.port import PortNo, PortState
+from pyof.v0x04.common.header import Type
 from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core.connection import ConnectionState
@@ -180,10 +181,10 @@ class TestNApp:
 
     @patch('napps.kytos.of_core.main.Main._handle_multipart_table_stats')
     @patch('napps.kytos.of_core.main.Main._handle_multipart_flow_stats')
-    @patch('napps.kytos.of_core.v0x04.utils.handle_port_desc')
+    @patch('napps.kytos.of_core.main.Main._handle_port_desc')
     async def test_handle_multipart_reply(
         self,
-        mock_of_core_v0x04_utils,
+        mock_handle_porst_desc,
         mock_from_of_flow_stats_v0x04,
         mock_from_of_table_stats,
         switch_one,
@@ -206,15 +207,72 @@ class TestNApp:
         ofpmp_port_desc.body = "A"
         ofpmp_port_desc.multipart_type = MultipartType.OFPMP_PORT_DESC
         await napp._handle_multipart_reply(ofpmp_port_desc, switch_one)
-        mock_of_core_v0x04_utils.assert_called_with(
-            napp.controller, switch_one.connection.switch,
-            ofpmp_port_desc.body)
+        mock_handle_porst_desc.assert_called_with(
+            switch_one.connection.switch,
+            ofpmp_port_desc)
 
         ofpmp_desc = MagicMock()
         ofpmp_desc.body = "A"
         ofpmp_desc.multipart_type = MultipartType.OFPMP_DESC
         await napp._handle_multipart_reply(ofpmp_desc, switch_one)
         assert switch_one.update_description.call_count == 1
+
+    async def test_handle_port_desc(self, napp, switch_one):
+        """Test Handle Port Desc."""
+        mock_event_buffer = AsyncMock()
+        napp.controller.buffers.app.aput = mock_event_buffer
+        mock_port = MagicMock()
+        mock_port.port_no.value = PortNo.OFPP_LOCAL.value
+        mock_intf = MagicMock()
+        switch_one.update_or_create_interface.return_value = mock_intf
+        reply = MagicMock()
+        reply.body = [mock_port]
+        await napp._handle_port_desc(switch_one, reply)
+        assert switch_one.update_or_create_interface.call_count == 1
+        mock_event_buffer.assert_called()
+        mock_intf.activate.assert_called()
+        assert napp.controller.buffers.app.aput.call_count == 3
+
+    async def test_handle_port_desc_inactive(self, napp, switch_one):
+        """Test Handle Port Desc inactive interface."""
+        mock_event_buffer = AsyncMock()
+        napp.controller.buffers.app.aput = mock_event_buffer
+        mock_port = MagicMock()
+        mock_port.port_no.value = 1
+        mock_port.state.value = PortState.OFPPS_LINK_DOWN
+        mock_intf = MagicMock()
+        switch_one.update_or_create_interface.return_value = mock_intf
+        reply = MagicMock()
+        reply.body = [mock_port]
+        await napp._handle_port_desc(switch_one, reply)
+        assert switch_one.update_or_create_interface.call_count == 1
+        mock_event_buffer.assert_called()
+        mock_intf.deactivate.assert_called()
+        assert napp.controller.buffers.app.aput.call_count == 3
+
+    async def test_handle_port_desc_seen_state_early_ret(self,
+                                                         napp, switch_one):
+        """Test Handle Port Desc seen state early return ."""
+        switch_one.id = switch_one.dpid
+        mock_event_buffer = AsyncMock()
+        napp.controller.buffers.app.aput = mock_event_buffer
+        mock_port = MagicMock()
+        mock_port.port_no.value = 1
+        mock_port.state.value = PortState.OFPPS_LINK_DOWN
+        mock_intf = MagicMock()
+        mock_intf.id = "1"
+        switch_one.get_interface_by_port_no.return_value = mock_intf
+        switch_one.update_or_create_interface.return_value = mock_intf
+        reply = MagicMock()
+        reply.body = [mock_port]
+        reply.header.xid = 10
+
+        napp._intf_state_seen_num[switch_one.id][mock_intf.id] = 1
+        await napp._handle_port_desc(switch_one, reply)
+        assert not switch_one.update_or_create_interface.call_count
+        mock_event_buffer.assert_not_called()
+        mock_intf.deactivate.assert_not_called()
+        assert not napp.controller.buffers.app.aput.call_count
 
     @patch('napps.kytos.of_core.main.log')
     @patch('napps.kytos.of_core.main.Main._update_switch_flows')
@@ -620,30 +678,6 @@ class TestMain:
             mock_reply, mock_switch, 'flows')
         assert not response
 
-    @patch('napps.kytos.of_core.main.Main.update_port_status')
-    @patch('napps.kytos.of_core.main.Main.update_links')
-    def test_emit_message_in(self, *args):
-        """Test emit_message_in."""
-        (mock_update_links, mock_update_port_status) = args
-
-        mock_port_connection = MagicMock()
-        msg_port_mock = MagicMock()
-        msg_port_mock.header.message_type.name = 'ofpt_port_status'
-        mock_port_connection.side_effect = True
-        self.napp.emit_message_in(mock_port_connection,
-                                  msg_port_mock)
-        mock_update_port_status.assert_called_with(msg_port_mock,
-                                                   mock_port_connection)
-
-        mock_packet_in_connection = MagicMock()
-        msg_packet_in_mock = MagicMock()
-        mock_packet_in_connection.side_effect = True
-        msg_packet_in_mock.header.message_type.name = 'ofpt_packet_in'
-        self.napp.emit_message_in(mock_packet_in_connection,
-                                  msg_packet_in_mock)
-        mock_update_links.assert_called_with(msg_packet_in_mock,
-                                             mock_packet_in_connection)
-
     @patch('napps.kytos.of_core.main.emit_message_out')
     def test_emit_message_out(self, mock_emit_message_out):
         """Test emit message_out."""
@@ -781,3 +815,40 @@ class TestMain:
         mock_port_mod.assert_called()
         mock_buffer_put.assert_called()
         mock_intf.deactivate.assert_called()
+
+    def test_msg_counter_init_values(self, napp) -> None:
+        """Test msg counter init values."""
+        assert napp._msg_seq_types == set(
+            [Type.OFPT_MULTIPART_REPLY, Type.OFPT_PORT_STATUS]
+        )
+        assert not napp._intf_state_seen_num["dpid"]["intf_id"]
+        assert not napp._xid_seq_num["dpid"]["xid"]
+        assert not napp._msg_seq_cnt["dpid"]
+
+    @patch('napps.kytos.of_core.main.Interface')
+    def test_update_port_status_port_state_early_ret(self, mock_interface):
+        """Test update_port_status state early return."""
+        mock_buffer_put = MagicMock()
+        self.napp.controller._buffers.app.put = mock_buffer_put
+        mock_intf = MagicMock()
+        mock_intf.id = "1"
+        mock_interface.return_value = mock_intf
+        mock_port_status = MagicMock()
+        mock_source = MagicMock()
+        switch_mock = MagicMock()
+        switch_mock.id = "1"
+        mock_source.switch = switch_mock
+        switch_mock.get_interface_by_port_no.return_value = mock_intf
+        mock_port = MagicMock()
+        mock_port.state.value = PortState.OFPPS_LIVE
+        speed = 10000000
+        mock_port.curr_speed.value = speed
+
+        self.napp._intf_state_seen_num[switch_mock.id][mock_intf.id] = 1
+
+        mock_port_status.reason.value.side_effect = [0, 1, 2]
+        mock_port_status.reason.enum_ref(0).name = 'OFPPR_ADD'
+        mock_port_status.desc = mock_port
+        self.napp.update_port_status(mock_port_status, mock_source)
+        mock_interface.assert_not_called()
+        assert not mock_intf.activate.call_count == 1
