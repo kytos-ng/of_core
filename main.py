@@ -673,18 +673,17 @@ class Main(KytosNApp):
 
         switch = source.switch
         interface = switch.get_interface_by_port_no(port_no)
-        xid_seq_num = self._xid_seq_num[switch.id][int(port_status.header.xid)]
+        xid_val = int(port_status.header.xid)
+        xid_seq_num = self._xid_seq_num[switch.id][xid_val]
         if (
             settings.SKIP_INTF_STATE_LATE_UPDATES and
             interface and
             xid_seq_num < self._intf_state_seen_num[switch.id][interface.id]
         ):
-            last_seen = self._intf_state_seen_num[switch.id][interface.id]
             state = state_desc.get(port.state.value, port.state.value)
             log.info(
                 f"Skipping PortStatus {reason} on intf {interface}, "
-                f"state: {state}, xid {xid_seq_num}/0x{xid_seq_num:x}, "
-                f"last seen xid {last_seen}/0x{last_seen:x}"
+                f"state: {state}, xid {xid_val}/0x{xid_val:x} "
             )
             return
 
@@ -753,7 +752,8 @@ class Main(KytosNApp):
             port_no = port.port_no.value
 
             intf = switch.get_interface_by_port_no(port_no)
-            xid_seq_num = self._xid_seq_num[switch.id][int(reply.header.xid)]
+            xid_val = int(reply.header.xid)
+            xid_seq_num = self._xid_seq_num[switch.id][xid_val]
             if (
                 settings.SKIP_INTF_STATE_LATE_UPDATES and
                 intf and
@@ -763,11 +763,9 @@ class Main(KytosNApp):
                 state_desc = {v: k for k, v in PortState._enum.items()}
                 # pylint: enable=protected-access
                 state = state_desc.get(port.state.value, port.state.value)
-                last_seen = self._intf_state_seen_num[switch.id][intf.id]
                 log.info(
                     f"Skipping PortDesc on intf {intf}, state: {state}, "
-                    f"xid {xid_seq_num}/0x{xid_seq_num:x}, "
-                    f"last seen xid {last_seen}/0x{last_seen:x}"
+                    f"xid {xid_val}/0x{xid_val:x} "
                 )
                 continue
 
