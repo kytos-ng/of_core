@@ -6,6 +6,13 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2025.1.2] - 2025-06-13
+***********************
+
+Changed
+=======
+- Event reason ``OFPPR_ADD`` behaves similar to ``OFPPR_MODIFY`` when interface already exists in switch so the Interface object does not get replaced.
+
 [2025.1.1] - 2025-04-26
 ***********************
 
