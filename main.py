@@ -662,8 +662,8 @@ class Main(KytosNApp):
             source.switch.update_interface(interface)
             try_to_activate_interface(interface, port)
 
-        elif reason == 'OFPPR_MODIFY':
-            status = 'modified'
+        if reason in ("OFPPR_ADD", "OFPPR_MODIFY"):
+            status = "created"
             interface = source.switch.get_interface_by_port_no(port_no)
             current_status = None
             if interface:
@@ -683,7 +683,10 @@ class Main(KytosNApp):
                                       features=port.curr)
             source.switch.update_interface(interface)
             try_to_activate_interface(interface, port)
-            self._send_specific_port_mod(port, interface, current_status)
+
+            if reason == "OFPPR_MODIFY":
+                status = 'modified'
+                self._send_specific_port_mod(port, interface, current_status)
 
         elif reason == 'OFPPR_DELETE':
             status = 'deleted'

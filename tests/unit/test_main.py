@@ -750,11 +750,19 @@ class TestMain:
         speed = 10000000
         mock_port.curr_speed.value = speed
 
+        mock_source.switch.get_interface_by_port_no.return_value = False
         mock_port_status.reason.value.side_effect = [0, 1, 2]
         mock_port_status.reason.enum_ref(0).name = 'OFPPR_ADD'
         mock_port_status.desc = mock_port
         self.napp.update_port_status(mock_port_status, mock_source)
-        mock_interface.assert_called()
+        assert mock_interface.call_count == 1
+        assert mock_intf.activate.call_count == 1
+        assert mock_interface.call_args[1]["speed"] == speed
+
+        # If interface already exists do not create a new Interface object
+        mock_source.switch.get_interface_by_port_no.return_value = MagicMock()
+        self.napp.update_port_status(mock_port_status, mock_source)
+        assert mock_interface.call_count == 1
         assert mock_intf.activate.call_count == 1
         assert mock_interface.call_args[1]["speed"] == speed
 
