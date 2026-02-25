@@ -92,13 +92,13 @@ class TestMatch:
 
     def test_match04_ipv6(self):
         """Test IPv6 match fields."""
-        VALUE_RESULT_v6 = [
+        value_result_v6 = [
             ("2001:db8:0:100:0:0:0:1/128", "2001:db8:0:100::1"),
             ("2001:db8:0:100:0:0:0:0/64", "2001:db8:0:100::/64"),
             ("2001:0db8:0000:0000:0000:0000:0000:0001", "2001:db8::1"),
             ("::1/128", "::1"),
         ]
-        for value, result in VALUE_RESULT_v6:
+        for value, result in value_result_v6:
             m1 = Match04(ipv6_src=value)
             assert m1.ipv6_src == result
             m2 = Match04(ipv6_dst=value)
@@ -110,13 +110,13 @@ class TestMatch:
 
     def test_match04_ipv4(self):
         """Test IPv4 match fields."""
-        VALUE_RESULT_v4 = [
+        value_result_v4 = [
             ("192.168.0.1/32", "192.168.0.1"),
             ("192.168.0.0/24", "192.168.0.0/24"),
             ("0.0.0.0/0", "0.0.0.0/0"),
             ("255.255.255.255/32", "255.255.255.255"),
         ]
-        for value, result in VALUE_RESULT_v4:
+        for value, result in value_result_v4:
             m1 = Match04(nw_src=value)
             assert m1.nw_src == result
             m2 = Match04(nw_dst=value)
