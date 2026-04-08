@@ -292,7 +292,7 @@ class TestNApp:
         assert switch_one.update_or_create_interface.call_count == 1
         mock_event_buffer.assert_called()
         mock_intf.activate.assert_called()
-        assert napp.controller.buffers.app.aput.call_count == 3
+        assert napp.controller.buffers.app.aput.call_count == 2
 
     async def test_handle_port_desc_inactive(self, napp, switch_one):
         """Test Handle Port Desc inactive interface."""
@@ -309,7 +309,7 @@ class TestNApp:
         assert switch_one.update_or_create_interface.call_count == 1
         mock_event_buffer.assert_called()
         mock_intf.deactivate.assert_called()
-        assert napp.controller.buffers.app.aput.call_count == 3
+        assert napp.controller.buffers.app.aput.call_count == 2
 
     @patch('napps.kytos.of_core.main.log')
     async def test_handle_port_desc_seen_state_early_ret(self, mock_log,

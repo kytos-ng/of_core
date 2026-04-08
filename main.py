@@ -772,9 +772,6 @@ class Main(KytosNApp):
             interfaces.append(interface)
             self._intf_state_seen_num[switch.id][interface.id] = xid_seq_num
 
-            event_name = 'kytos/of_core.switch.interface.created'
-            interface_event = KytosEvent(name=event_name,
-                                         content={'interface': interface})
             port_event = KytosEvent(name='kytos/of_core.switch.port.created',
                                     content={
                                         'switch': switch.id,
@@ -786,7 +783,6 @@ class Main(KytosNApp):
                                             }
                                         })
             await self.controller.buffers.app.aput(port_event)
-            await self.controller.buffers.app.aput(interface_event)
         if interfaces:
             event_name = 'kytos/of_core.switch.interfaces.created'
             interface_event = KytosEvent(name=event_name,
