@@ -8,7 +8,7 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Changed
 =======
-- The event ``kytos/of_core.switch.interface.created`` is no longer sent when the reply from a switch has type of ``OFPMP_PORT_DESC``. ``topology`` NApp already manages the interfaces afer ``kytos/of_core.switch.port.created`` event.
+- The event ``kytos/of_core.switch.interface.created`` is no longer sent when the reply from a switch has type of ``OFPMP_PORT_DESC``; it is still sent after ``OFPPR_ADD`` is received. ``topology`` NApp already manages the interfaces afer receiving ``kytos/of_core.switch.interfaces.created`` event.
 
 [2025.2.0] - 2026-02-02
 ***********************
