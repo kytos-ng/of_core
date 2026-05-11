@@ -181,7 +181,6 @@ class TestAsync:
         await self.napp._handle_multipart_reply(reply, event_switch)
 
         ex_switch = 'kytos/of_core.switch.port.created'
-        ex_interface = 'kytos/of_core.switch.interface.created'
         ex_interfaces = 'kytos/of_core.switch.interfaces.created'
         ex_dpid = '00:00:00:00:00:00:00:02'
         ex_port = 7
@@ -189,13 +188,9 @@ class TestAsync:
         for _ in range(0, 2):
             for i in range(0, 2):
                 of_event_01 = await self.napp.controller.buffers.app.aget()
-                of_event_02 = await self.napp.controller.buffers.app.aget()
                 assert of_event_01.name == ex_switch
                 assert of_event_01.content['switch'] == ex_dpid
                 assert of_event_01.content['port'] == ex_port - i
-                assert of_event_02.name == ex_interface
-                assert getattr(of_event_02.content['interface'],
-                               'port_number') == ex_port - i
 
             of_event_01 = await self.napp.controller.buffers.app.aget()
             assert of_event_01.name == ex_interfaces

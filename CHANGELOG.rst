@@ -8,9 +8,8 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Changed
 =======
-- Added ``ipaddress`` lib to parser requests for IPv4 and IPv4 on MatchBase,
-allowing validation of IPv6 compressed addresses, IPv4 with /32 masks and
-IPv4 network with host bit set.
+- The event ``kytos/of_core.switch.interface.created`` is no longer sent when the reply from a switch has type of ``OFPMP_PORT_DESC``; it is still sent after ``OFPPR_ADD`` is received. ``topology`` NApp already manages the interfaces afer receiving ``kytos/of_core.switch.interfaces.created`` event.
+- Added ``ipaddress`` lib to parser requests for IPv4 and IPv4 on MatchBase, allowing validation of IPv6 compressed addresses, IPv4 with /32 masks and IPv4 network with host bit set.
 
 [2025.2.0] - 2026-02-02
 ***********************
