@@ -8,6 +8,7 @@ All notable changes to the of_core NApp will be documented in this file.
 
 Changed
 =======
+- Port description handler now publishes ``kytos/of_core.switch.interface.created`` even if interfaces are empty, this is to facilitate for ``of_lldp`` to get an event when interfaces have been created. This event also now includes ``dpid`` too in its body
 - The event ``kytos/of_core.switch.interface.created`` is no longer sent when the reply from a switch has type of ``OFPMP_PORT_DESC``; it is still sent after ``OFPPR_ADD`` is received. ``topology`` NApp already manages the interfaces afer receiving ``kytos/of_core.switch.interfaces.created`` event.
 - If a duplicated DPID is detected when handling features reply it'll log an error and return
 
