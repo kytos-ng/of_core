@@ -11,6 +11,8 @@ Changed
 - Added ``ipaddress`` lib to parser requests for IPv4 and IPv4 on MatchBase,
 allowing validation of IPv6 compressed addresses, IPv4 with /32 masks and
 IPv4 network with host bit set.
+- Adding ``sending_features`` as a valid state for waiting features during
+OF Handshake phase.
 
 [2025.2.0] - 2026-02-02
 ***********************
