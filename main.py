@@ -368,7 +368,10 @@ class Main(KytosNApp):
                 ofp_msg_type_str = message.header.message_type.name.lower()
                 waiting_features_reply = (
                     ofp_msg_type_str == 'ofpt_features_reply'
-                    and connection.protocol.state == 'waiting_features_reply')
+                    and connection.protocol.state in (
+                        'waiting_features_reply', 'sending_features'
+                    )
+                )
 
                 if connection.is_during_setup() and not waiting_features_reply:
                     unprocessed_packets.append(packet)
