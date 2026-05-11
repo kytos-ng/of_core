@@ -10,6 +10,7 @@ from pyof.v0x04.common.header import Type
 from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.core.connection import ConnectionState
+from kytos.core.exceptions import KytosDuplicatedSwitch
 from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
                                get_kytos_event_mock, get_switch_mock)
 
@@ -713,6 +714,24 @@ class TestMain:
         assert dpid not in self.napp._multipart_replies_tables
 
         mock_buffers_put.assert_called()
+
+    @patch('napps.kytos.of_core.main.log')
+    def test_handle_features_reply_unique_dpid(self, mock_log):
+        """Test handle features reply."""
+        dpid = self.switch_v0x04.connection.switch.dpid
+        self.switch_v0x04.connection.switch.id = dpid
+        name = 'kytos/of_core.v0x04.messages.in.ofpt_features_reply'
+        self.switch_v0x04.connection.state = ConnectionState.SETUP
+        self.switch_v0x04.connection.protocol.state = 'waiting_features_reply'
+        content = {"source": self.switch_v0x04.connection,
+                   "message": MagicMock()}
+        event = get_kytos_event_mock(name=name, content=content)
+        get_switch_or_create = MagicMock()
+        self.napp.controller.get_switch_or_create = get_switch_or_create
+        get_switch_or_create.side_effect = KytosDuplicatedSwitch("")
+
+        self.napp.handle_features_reply(event)
+        assert mock_log.error.call_count == 1
 
     def test_update_switch_flows(self):
         """Test update_switch_flows."""
