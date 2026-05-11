@@ -333,10 +333,31 @@ class TestNApp:
         napp._intf_state_seen_num[switch_one.id][mock_intf.id] = 1
         await napp._handle_port_desc(switch_one, reply)
         assert not switch_one.update_or_create_interface.call_count
-        mock_event_buffer.assert_not_called()
+        mock_event_buffer.assert_called()
         mock_intf.deactivate.assert_not_called()
-        assert not napp.controller.buffers.app.aput.call_count
+        assert napp.controller.buffers.app.aput.call_count == 1
         mock_log.info.assert_called()
+
+    @patch('napps.kytos.of_core.main.log')
+    async def test_handle_port_desc_empty_intfs(self, mock_log, napp,
+                                                switch_one):
+        """Test Handle Port Desc empty intfs."""
+        switch_one.id = switch_one.dpid
+        mock_event_buffer = AsyncMock()
+        napp.controller.buffers.app.aput = mock_event_buffer
+        reply = MagicMock()
+        reply.body = []
+        reply.header.xid = 10
+
+        await napp._handle_port_desc(switch_one, reply)
+        assert not switch_one.update_or_create_interface.call_count
+        mock_event_buffer.assert_called()
+        assert napp.controller.buffers.app.aput.call_count == 1
+        args = napp.controller.buffers.app.aput.call_args
+        ev = args[0][0]
+        assert ev.name.endswith("interfaces.created")
+        assert ev.content["interfaces"] == []
+        assert "dpid" in ev.content
 
     @patch('napps.kytos.of_core.main.log')
     @patch('napps.kytos.of_core.main.Main._update_switch_flows')
