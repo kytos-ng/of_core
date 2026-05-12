@@ -339,8 +339,7 @@ class TestNApp:
         mock_log.info.assert_called()
 
     @patch('napps.kytos.of_core.main.log')
-    async def test_handle_port_desc_empty_intfs(self, mock_log, napp,
-                                                switch_one):
+    async def test_handle_port_desc_empty_intfs(self, napp, switch_one):
         """Test Handle Port Desc empty intfs."""
         switch_one.id = switch_one.dpid
         mock_event_buffer = AsyncMock()
