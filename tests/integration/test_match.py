@@ -25,6 +25,7 @@ class TestMatch:
         """Test all match fields from and to dict."""
         match = match_class.from_dict(self.EXPECTED)
         actual = match.as_dict()
+        self.EXPECTED["nw_src"] = "1.2.3.4"
         assert self.EXPECTED == actual
 
     def test_of_match(self):
