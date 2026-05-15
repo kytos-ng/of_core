@@ -116,9 +116,7 @@ def handle_features_reply(controller, event):
     connection = event.source
     features_reply = event.content['message']
     dpid = features_reply.datapath_id.value
-
-    switch = controller.get_switch_or_create(dpid=dpid,
-                                             connection=connection)
+    switch = controller.get_switch_or_create(dpid=dpid, connection=connection)
     send_port_request(controller, connection)
 
     switch.update_features(features_reply)

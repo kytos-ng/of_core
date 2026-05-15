@@ -22,6 +22,7 @@ from pyof.v0x04.controller2switch.features_reply import Capabilities
 
 from kytos.core import KytosEvent, KytosNApp, log
 from kytos.core.connection import ConnectionState
+from kytos.core.exceptions import KytosDuplicatedSwitch
 from kytos.core.helpers import alisten_to, listen_to, run_on_thread
 from kytos.core.interface import Interface
 
@@ -155,7 +156,12 @@ class Main(KytosNApp):
         """Handle kytos/of_core.messages.in.ofpt_features_reply event."""
         connection = event.source
         version_utils = self.of_core_version_utils[connection.protocol.version]
-        switch = version_utils.handle_features_reply(self.controller, event)
+        try:
+            switch = version_utils.handle_features_reply(self.controller,
+                                                         event)
+        except KytosDuplicatedSwitch as exc:
+            log.error(str(exc))
+            return
         switch.update_lastseen()
         self.pop_multipart_replies(switch)
         self.pop_seq_msg_counters(switch)
