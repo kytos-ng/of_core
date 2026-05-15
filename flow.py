@@ -7,6 +7,7 @@ inherited in v0x04 modules.
 import json
 from abc import ABC, abstractmethod
 from hashlib import md5
+from ipaddress import AddressValueError, IPv4Network, IPv6Network
 
 from napps.kytos.of_core import v0x04
 from pyof.v0x04.controller2switch.flow_mod import FlowModCommand
@@ -420,6 +421,78 @@ class MatchBase:  # pylint: disable=too-many-instance-attributes
     @abstractmethod
     def as_of_match(self):
         """Return a python-openflow Match."""
+
+    @property
+    def nw_src(self):
+        """The nw_src property."""
+        return self.__dict__["nw_src"]
+
+    @nw_src.setter
+    def nw_src(self, value):
+        """The nw_src setter."""
+        if value is None:
+            self.__dict__["nw_src"] = None
+            return
+        try:
+            self.__dict__["nw_src"] = str(
+                IPv4Network(value)
+            ).removesuffix("/32")
+        except (AddressValueError, ValueError) as exc:
+            raise TypeError(exc) from exc
+
+    @property
+    def nw_dst(self):
+        """The nw_dst property."""
+        return self.__dict__["nw_dst"]
+
+    @nw_dst.setter
+    def nw_dst(self, value):
+        """The nw_dst setter."""
+        if value is None:
+            self.__dict__["nw_dst"] = None
+            return
+        try:
+            self.__dict__["nw_dst"] = str(
+                IPv4Network(value)
+            ).removesuffix("/32")
+        except (AddressValueError, ValueError) as exc:
+            raise TypeError(exc) from exc
+
+    @property
+    def ipv6_src(self):
+        """The ipv6_src property."""
+        return self.__dict__["ipv6_src"]
+
+    @ipv6_src.setter
+    def ipv6_src(self, value):
+        """The ipv6_src setter."""
+        if value is None:
+            self.__dict__["ipv6_src"] = None
+            return
+        try:
+            self.__dict__["ipv6_src"] = str(
+                IPv6Network(value)
+            ).removesuffix("/128")
+        except (AddressValueError, ValueError) as exc:
+            raise TypeError(exc) from exc
+
+    @property
+    def ipv6_dst(self):
+        """The ipv6_dst property."""
+        return self.__dict__["ipv6_dst"]
+
+    @ipv6_dst.setter
+    def ipv6_dst(self, value):
+        """The ipv6_dst setter."""
+        if value is None:
+            self.__dict__["ipv6_dst"] = None
+            return
+        try:
+            self.__dict__["ipv6_dst"] = str(
+                IPv6Network(value)
+            ).removesuffix("/128")
+        except (AddressValueError, ValueError) as exc:
+            raise TypeError(exc) from exc
 
 
 class Stats:

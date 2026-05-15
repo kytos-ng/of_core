@@ -32,8 +32,8 @@ class TestMatch:
         'sctp_dst': 7,
         'icmpv4_type': 8,
         'icmpv4_code': 9,
-        'ipv6_src': 'abcd:0000:0000:0000:0000:0000:0000:0001/64',
-        'ipv6_dst': 'ef01:0000:0000:0000:0000:0000:0000:0002/48',
+        'ipv6_src': 'abcd:1000:1000:1000:1000:1000:1000:1000/126',
+        'ipv6_dst': 'ef01:0000:0000:0000:0000:0000:0000:0000/48',
         'ipv6_flabel': 27,
         'icmpv6_type': 5,
         'icmpv6_code': 6,
@@ -80,6 +80,7 @@ class TestMatch:
     def test_match_tlv(self):
         """Test OF 1.3 matches"""
         match = Match04.from_dict(self.EXPECTED_OF_13)
+        self.EXPECTED_OF_13["ipv6_dst"] = "ef01::/48"
         assert Match04.from_of_match(match.as_of_match()).as_dict() == \
             self.EXPECTED_OF_13
 
@@ -88,3 +89,39 @@ class TestMatch:
         match_values = {'in_port': 1, 'dl_vlan': 2}
         match_04 = Match04(**match_values)
         assert len(match_04.as_dict()) == len(match_values)
+
+    def test_match04_ipv6(self):
+        """Test IPv6 match fields."""
+        value_result_v6 = [
+            ("2001:db8:0:100:0:0:0:1/128", "2001:db8:0:100::1"),
+            ("2001:db8:0:100:0:0:0:0/64", "2001:db8:0:100::/64"),
+            ("2001:0db8:0000:0000:0000:0000:0000:0001", "2001:db8::1"),
+            ("::1/128", "::1"),
+        ]
+        for value, result in value_result_v6:
+            m1 = Match04(ipv6_src=value)
+            assert m1.ipv6_src == result
+            m2 = Match04(ipv6_dst=value)
+            assert m2.ipv6_dst == result
+        with pytest.raises(TypeError):
+            Match04(ipv6_src="2001:ggg::1")
+        with pytest.raises(TypeError):
+            Match04(ipv6_dst="2001:db8::1/64")
+
+    def test_match04_ipv4(self):
+        """Test IPv4 match fields."""
+        value_result_v4 = [
+            ("192.168.0.1/32", "192.168.0.1"),
+            ("192.168.0.0/24", "192.168.0.0/24"),
+            ("0.0.0.0/0", "0.0.0.0/0"),
+            ("255.255.255.255/32", "255.255.255.255"),
+        ]
+        for value, result in value_result_v4:
+            m1 = Match04(nw_src=value)
+            assert m1.nw_src == result
+            m2 = Match04(nw_dst=value)
+            assert m2.nw_dst == result
+        with pytest.raises(TypeError):
+            Match04(nw_src="192.168.260.1")
+        with pytest.raises(TypeError):
+            Match04(nw_dst="192.168.0.1/24")
