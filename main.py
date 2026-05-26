@@ -792,11 +792,12 @@ class Main(KytosNApp):
                                             }
                                         })
             await self.controller.buffers.app.aput(port_event)
-        if interfaces:
-            event_name = 'kytos/of_core.switch.interfaces.created'
-            interface_event = KytosEvent(name=event_name,
-                                         content={'interfaces': interfaces})
-            await self.controller.buffers.app.aput(interface_event)
+
+        event_name = 'kytos/of_core.switch.interfaces.created'
+        interface_event = KytosEvent(name=event_name,
+                                     content={'interfaces': interfaces,
+                                              'dpid': switch.id})
+        await self.controller.buffers.app.aput(interface_event)
 
 
 def _get_version_from_bitmask(message_versions):

@@ -123,6 +123,7 @@ Content:
 
    {
     'interfaces': [<interface>] # Instance of Interface class
+    'dpid': <switch.id>
    }
 
 kytos/of_core.flow_stats.received
