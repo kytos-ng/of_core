@@ -207,6 +207,8 @@ class Main(KytosNApp):
             await self._handle_port_desc(switch, reply)
         elif reply.multipart_type == MultipartType.OFPMP_DESC:
             switch.update_description(reply.body)
+        if reply.flags.value % 2 == 0:
+            self._xid_seq_num[switch.id].pop(int(reply.header.xid), None)
 
     async def _handle_multipart_flow_stats(self, reply, switch):
         """Update switch flows after all replies are received.
@@ -577,10 +579,18 @@ class Main(KytosNApp):
         self._xid_seq_num.pop(switch.id, None)
         self._msg_seq_cnt.pop(switch.id, None)
 
+    @alisten_to("kytos/core.openflow.connection.lost")
+    async def on_openflow_connection_lost(self, event):
+        """On openflow connection lost clean up the per-connection lock."""
+        connection = event.content["source"]
+        self._connection_lock.pop(connection.id, None)
+
     @alisten_to("kytos/core.openflow.connection.error")
     async def on_openflow_connection_error(self, event):
         """On openflow connection error try to pop multipart replies."""
-        switch = event.content["destination"].switch
+        connection = event.content["destination"]
+        self._connection_lock.pop(connection.id, None)
+        switch = connection.switch
         if not switch:
             return
         self.pop_multipart_replies(switch)
@@ -684,6 +694,7 @@ class Main(KytosNApp):
         interface = switch.get_interface_by_port_no(port_no)
         xid_val = int(port_status.header.xid)
         xid_seq_num = self._xid_seq_num[switch.id][xid_val]
+        self._xid_seq_num[switch.id].pop(xid_val, None)
         if (
             settings.SKIP_INTF_STATE_LATE_UPDATES and
             interface and
