@@ -14,7 +14,7 @@ from kytos.core.exceptions import KytosDuplicatedSwitch
 from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
                                get_kytos_event_mock, get_switch_mock)
 
-# pylint: disable=protected-access, invalid-name
+# pylint: disable=protected-access, invalid-name, too-many-lines
 
 
 class TestNApp:
