@@ -14,7 +14,7 @@ from kytos.core.exceptions import KytosDuplicatedSwitch
 from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
                                get_kytos_event_mock, get_switch_mock)
 
-# pylint: disable=protected-access, invalid-name
+# pylint: disable=protected-access, invalid-name, too-many-lines
 
 
 class TestNApp:
@@ -532,6 +532,80 @@ class TestNApp:
         await napp.on_openflow_connection_error(event)
         assert napp.pop_multipart_replies.call_count == 0
         assert napp.pop_seq_msg_counters.call_count == 0
+
+    def test_update_port_status_pops_xid_seq_num(self, napp) -> None:
+        """update_port_status should drop the consumed xid seq num so
+        _xid_seq_num does not grow unbounded per switch."""
+        switch = MagicMock(id="00:00:00:00:00:00:00:01")
+        intf = MagicMock(id="00:00:00:00:00:00:00:01:1")
+        switch.get_interface_by_port_no.return_value = intf
+        source = MagicMock(switch=switch)
+        port_status = MagicMock()
+        port_status.header.xid = 0xABE
+        xid_val = int(port_status.header.xid)
+        napp._xid_seq_num[switch.id][xid_val] = 1
+        # Make it a late update so the method returns early after popping.
+        napp._intf_state_seen_num[switch.id][intf.id] = 5
+        napp.update_port_status(port_status, source)
+        assert xid_val not in napp._xid_seq_num[switch.id]
+
+    async def test_handle_multipart_reply_pops_xid_seq_num(self, napp) -> None:
+        """_handle_multipart_reply should drop the consumed xid seq num so
+        _xid_seq_num does not grow one entry per stats cycle."""
+        switch = MagicMock(id="00:00:00:00:00:00:00:01")
+        reply = MagicMock()
+        reply.multipart_type = MultipartType.OFPMP_DESC
+        reply.header.xid = 0xABC
+        reply.flags.value = 0  # no MORE flag
+        xid_val = int(reply.header.xid)
+        napp._xid_seq_num[switch.id][xid_val] = 3
+        await napp._handle_multipart_reply(reply, switch)
+        assert xid_val not in napp._xid_seq_num[switch.id]
+
+    async def test_handle_multipart_reply_retains_xid_seq_num_on_more(
+        self, napp
+    ) -> None:
+        """_handle_multipart_reply must NOT pop the xid while MORE flag is set.
+
+        PORT_DESC can span multiple replies sharing the same xid.  Popping
+        early would cause _handle_port_desc to read xid_seq_num=0 for
+        subsequent replies and incorrectly skip late-update filtering.
+        """
+        switch = MagicMock(id="00:00:00:00:00:00:00:01")
+        reply = MagicMock()
+        reply.multipart_type = MultipartType.OFPMP_DESC
+        reply.header.xid = 0xABC
+        reply.flags.value = 1  # MORE flag set — simulates intermediate reply
+        xid_val = int(reply.header.xid)
+        napp._xid_seq_num[switch.id][xid_val] = 7
+        await napp._handle_multipart_reply(reply, switch)
+        assert xid_val in napp._xid_seq_num[switch.id]
+
+    async def test_on_openflow_connection_error_pops_connection_lock(
+        self, napp
+    ) -> None:
+        """on_openflow_connection_error should drop the per-connection lock so
+        _connection_lock does not grow one Lock per reconnect."""
+        event = MagicMock()
+        connection = event.content["destination"]
+        connection.id = ("192.0.2.1", 54321)
+        connection.switch = MagicMock(id="00:00:00:00:00:00:00:01")
+        _ = napp._connection_lock[connection.id]
+        assert connection.id in napp._connection_lock
+        await napp.on_openflow_connection_error(event)
+        assert connection.id not in napp._connection_lock
+
+    async def test_on_openflow_connection_lost_pops_connection_lock(
+        self, napp
+    ) -> None:
+        """on_openflow_connection_lost should drop the per-connection lock."""
+        event = MagicMock()
+        connection = event.content["source"]
+        connection.id = ("192.0.2.1", 54321)
+        _ = napp._connection_lock[connection.id]
+        assert connection.id in napp._connection_lock
+        await napp.on_openflow_connection_lost(event)
+        assert connection.id not in napp._connection_lock
 
 
 # pylint: disable=attribute-defined-outside-init

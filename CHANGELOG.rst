@@ -14,6 +14,11 @@ Changed
 - If a duplicated DPID is detected when handling features reply it'll log an error and return
 - Adding ``sending_features`` as a valid state for waiting features during OF Handshake phase.
 
+Fixed
+=====
+
+- Popped xid seq nums after use to avoid unbounded mem growth
+
 [2025.2.0] - 2026-02-02
 ***********************
 
