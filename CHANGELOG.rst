@@ -6,6 +6,14 @@ All notable changes to the of_core NApp will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2025.2.1] - 2026-07-20
+***********************
+
+Fixed
+=====
+
+- Popped xid seq nums after use to avoid unbounded mem growth
+
 [2025.2.0] - 2026-02-02
 ***********************
 
