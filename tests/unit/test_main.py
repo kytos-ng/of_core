@@ -720,18 +720,36 @@ class TestMain:
     @patch('time.sleep', return_value=None)
     @patch('napps.kytos.of_core.main.Main.'
            '_check_overlapping_multipart_request')
+    @patch('napps.kytos.of_core.v0x04.utils.request_port_stats')
     @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
     @patch('napps.kytos.of_core.v0x04.utils.request_table_stats')
     def test_request_stats(self, *args):
         """Test request flow list."""
         (mock_request_table_stats_v0x4, mock_update_flow_list_v0x04,
+            mock_request_port_stats_v0x04,
             mock_check_overlapping_multipart_request, _) = args
+        dpid = self.switch_v0x04.id
         mock_update_flow_list_v0x04.return_value = 0xABC
+        mock_request_port_stats_v0x04.return_value = 0xDEF
         mock_check_overlapping_multipart_request.return_value = False
+
+        # The flows xid must be recorded before the port stats request is
+        # emitted, so a fast reply is not discarded (issue #170).
+        seen_at_port_request = {}
+
+        def _capture_state(*_args, **_kwargs):
+            seen_at_port_request.update(
+                self.napp._multipart_replies_xids.get(dpid, {}))
+            return 0xDEF
+        mock_request_port_stats_v0x04.side_effect = _capture_state
+
         self.switch_v0x04 = self._add_features_switch(self.switch_v0x04)
         self.napp._request_stats(self.switch_v0x04)
         mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
                                                        self.switch_v0x04)
+        assert seen_at_port_request == {'flows': 0xABC}
+        assert self.napp._multipart_replies_xids[dpid]['flows'] == 0xABC
+        assert self.napp._multipart_replies_xids[dpid]['ports'] == 0xDEF
         mock_request_table_stats_v0x4.return_value = 0xABC
         mock_request_table_stats_v0x4.assert_called_with(self.napp.controller,
                                                          self.switch_v0x04)

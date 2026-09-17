@@ -122,14 +122,16 @@ class Main(KytosNApp):
             if self._check_overlapping_multipart_request(switch):
                 return
 
+            # Record each xid right after its request is emitted (and before
+            # the next one is sent) to shrink the window where a fast switch
+            # can reply before ``_is_multipart_reply_ours`` knows the xid,
+            # which would otherwise discard the reply (see issue #170).
             xid_flows = of_core_v0x04_utils.update_flow_list(self.controller,
                                                              switch)
+            self._multipart_replies_xids[switch.id] = {'flows': xid_flows}
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
                                                                switch)
-            self._multipart_replies_xids[switch.id] = {
-                                                        'flows': xid_flows,
-                                                        'ports': xid_ports
-                                                      }
+            self._multipart_replies_xids[switch.id]['ports'] = xid_ports
             try:
                 if switch.features.capabilities.value & \
                     Capabilities.OFPC_TABLE_STATS == \
