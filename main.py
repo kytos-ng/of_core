@@ -124,12 +124,10 @@ class Main(KytosNApp):
 
             xid_flows = of_core_v0x04_utils.update_flow_list(self.controller,
                                                              switch)
+            self._multipart_replies_xids[switch.id] = {"flows": xid_flows}
             xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
                                                                switch)
-            self._multipart_replies_xids[switch.id] = {
-                                                        'flows': xid_flows,
-                                                        'ports': xid_ports
-                                                      }
+            self._multipart_replies_xids[switch.id]["ports"] = xid_ports
             try:
                 if switch.features.capabilities.value & \
                     Capabilities.OFPC_TABLE_STATS == \

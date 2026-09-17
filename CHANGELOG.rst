@@ -18,6 +18,7 @@ Fixed
 =====
 
 - Popped xid seq nums after use to avoid unbounded mem growth
+- Record flow/port multipart request xids incrementally right after each request is emitted, shrinking the race window where a fast switch reply could be discarded and cause overlapping stats requests (#170)
 
 [2025.2.0] - 2026-02-02
 ***********************
