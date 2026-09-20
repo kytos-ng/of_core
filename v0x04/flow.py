@@ -115,7 +115,7 @@ class ActionPopVlan(ActionBase):
         self.action_type = 'pop_vlan'
 
     @classmethod
-    def from_of_action(cls, of_action):
+    def from_of_action(cls, of_action):  # pylint: disable=unused-argument
         """Return a high-level ActionPopVlan instance from the pyof class."""
         return cls()
 
@@ -224,6 +224,7 @@ class InstructionAction(InstructionBase):
         self.actions = actions or []
 
     def as_dict(self):
+        """Return a representation of a Instruction as a dictionary."""
         instruction_dict = {'instruction_type': self.instruction_type}
         instruction_dict['actions'] = [action.as_dict()
                                        for action in self.actions if action]
