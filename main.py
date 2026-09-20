@@ -1,6 +1,7 @@
 """NApp responsible for the main OpenFlow basic operations."""
 
 import asyncio
+import threading
 import time
 from collections import defaultdict
 
@@ -48,6 +49,12 @@ class Main(KytosNApp):
         self.of_core_version_utils = {0x04: of_core_v0x04_utils}
         self.execute_as_loop(settings.STATS_INTERVAL)
         self._connection_lock = defaultdict(asyncio.Lock)
+
+        # Per-switch lock serializing multipart stats requests.
+        # ``_request_stats`` runs on a thread and reads/writes shared
+        # state (``_multipart_replies_*``), so concurrent requests for
+        # the same switch must not interleave.
+        self._multipart_lock = defaultdict(threading.Lock)
 
         # Message types that will be sequenced counted
         self._msg_seq_types = set(
@@ -118,26 +125,39 @@ class Main(KytosNApp):
         """Send flow stats request to a connected switch."""
         time.sleep(self._get_switch_req_stats_delay(switch))
         of_version = switch.connection.protocol.version
-        if of_version == 0x04:
+        if of_version != 0x04:
+            return
+        with self._multipart_lock[switch.id]:
             if self._check_overlapping_multipart_request(switch):
                 return
 
-            xid_flows = of_core_v0x04_utils.update_flow_list(self.controller,
-                                                             switch)
-            self._multipart_replies_xids[switch.id] = {"flows": xid_flows}
-            xid_ports = of_core_v0x04_utils.request_port_stats(self.controller,
-                                                               switch)
-            self._multipart_replies_xids[switch.id]["ports"] = xid_ports
+            # Build the requests first so their xids (assigned at construction)
+            # can be recorded *before* the messages are emitted. Emitting first
+            # would let a fast switch reply before ``_is_multipart_reply_ours``
+            # knows the xid, discarding the reply (see issue #170).
+            requests = [
+                of_core_v0x04_utils.build_flow_stats_request(),
+                of_core_v0x04_utils.build_port_stats_request(),
+            ]
+            xids = {
+                "flows": requests[0].header.xid,
+                "ports": requests[1].header.xid,
+            }
             try:
                 if switch.features.capabilities.value & \
                     Capabilities.OFPC_TABLE_STATS == \
                         Capabilities.OFPC_TABLE_STATS:
-                    xid_tables = of_core_v0x04_utils.request_table_stats(
-                        self.controller, switch)
-                    self._multipart_replies_xids[switch.id].update(
-                        {'tables': xid_tables})
+                    tables_req = (
+                        of_core_v0x04_utils.build_table_stats_request()
+                    )
+                    requests.append(tables_req)
+                    xids["tables"] = tables_req.header.xid
             except AttributeError as err:
                 log.error(f"Capabilities not set on switch {switch.id}: {err}")
+
+            self._multipart_replies_xids[switch.id] = xids
+            for request in requests:
+                emit_message_out(self.controller, switch.connection, request)
 
     @listen_to('kytos/of_core.v0x04.messages.in.ofpt_features_reply')
     def on_features_reply(self, event):
@@ -582,6 +602,8 @@ class Main(KytosNApp):
         """On openflow connection lost clean up the per-connection lock."""
         connection = event.content["source"]
         self._connection_lock.pop(connection.id, None)
+        if connection.switch:
+            self._multipart_lock.pop(connection.switch.id, None)
 
     @alisten_to("kytos/core.openflow.connection.error")
     async def on_openflow_connection_error(self, event):
@@ -591,6 +613,7 @@ class Main(KytosNApp):
         switch = connection.switch
         if not switch:
             return
+        self._multipart_lock.pop(switch.id, None)
         self.pop_multipart_replies(switch)
         self.pop_seq_msg_counters(switch)
 

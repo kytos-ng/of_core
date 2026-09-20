@@ -23,6 +23,47 @@ def try_to_activate_interface(interface, port):
     return interface
 
 
+def build_flow_stats_request():
+    """Build a flow stats multipart request.
+
+    The message header xid is assigned at construction time, so the caller
+    can record it before emitting the message (see issue #170).
+
+    Returns:
+        MultipartRequest: the flow stats request message
+
+    """
+    multipart_request = MultipartRequest()
+    multipart_request.multipart_type = MultipartType.OFPMP_FLOW
+    multipart_request.body = FlowStatsRequest()
+    return multipart_request
+
+
+def build_port_stats_request():
+    """Build a port stats multipart request.
+
+    Returns:
+        MultipartRequest: the port stats request message
+
+    """
+    multipart_request = MultipartRequest()
+    multipart_request.multipart_type = MultipartType.OFPMP_PORT_STATS
+    multipart_request.body = PortStatsRequest()
+    return multipart_request
+
+
+def build_table_stats_request():
+    """Build a table stats multipart request.
+
+    Returns:
+        MultipartRequest: the table stats request message
+
+    """
+    multipart_request = MultipartRequest()
+    multipart_request.multipart_type = MultipartType.OFPMP_TABLE
+    return multipart_request
+
+
 def update_flow_list(controller, switch):
     """Request flow stats from switches.
 
@@ -36,9 +77,7 @@ def update_flow_list(controller, switch):
         int: multipart request xid
 
     """
-    multipart_request = MultipartRequest()
-    multipart_request.multipart_type = MultipartType.OFPMP_FLOW
-    multipart_request.body = FlowStatsRequest()
+    multipart_request = build_flow_stats_request()
     emit_message_out(controller, switch.connection, multipart_request)
     return multipart_request.header.xid
 
@@ -56,9 +95,7 @@ def request_port_stats(controller, switch):
         int: multipart request xid
 
     """
-    multipart_request = MultipartRequest()
-    multipart_request.multipart_type = MultipartType.OFPMP_PORT_STATS
-    multipart_request.body = PortStatsRequest()
+    multipart_request = build_port_stats_request()
     emit_message_out(controller, switch.connection, multipart_request)
     return multipart_request.header.xid
 
@@ -76,8 +113,7 @@ def request_table_stats(controller, switch):
         int: multipart request xid
 
     """
-    multipart_request = MultipartRequest()
-    multipart_request.multipart_type = MultipartType.OFPMP_TABLE
+    multipart_request = build_table_stats_request()
     emit_message_out(controller, switch.connection, multipart_request)
     return multipart_request.header.xid
 

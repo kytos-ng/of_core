@@ -3,10 +3,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pyof.v0x04.common.port import PortNo, PortState
+from pyof.v0x04.controller2switch.common import MultipartType
 
 from kytos.lib.helpers import (get_connection_mock, get_controller_mock,
                                get_switch_mock)
-from napps.kytos.of_core.v0x04.utils import (handle_features_reply,
+
+from napps.kytos.of_core.v0x04.utils import (build_flow_stats_request,
+                                             build_port_stats_request,
+                                             build_table_stats_request,
+                                             handle_features_reply,
                                              say_hello,
                                              send_desc_request, send_echo,
                                              send_port_request,
@@ -85,3 +90,21 @@ class TestUtils:
         """Test set_config."""
         send_set_config(self.mock_controller, self.mock_switch)
         mock_emit_message_out.assert_called()
+
+    def test_build_flow_stats_request(self):
+        """Test build_flow_stats_request builds an OFPMP_FLOW request."""
+        request = build_flow_stats_request()
+        assert request.multipart_type == MultipartType.OFPMP_FLOW
+        assert request.header.xid is not None
+
+    def test_build_port_stats_request(self):
+        """Test build_port_stats_request builds an OFPMP_PORT_STATS request."""
+        request = build_port_stats_request()
+        assert request.multipart_type == MultipartType.OFPMP_PORT_STATS
+        assert request.header.xid is not None
+
+    def test_build_table_stats_request(self):
+        """Test build_table_stats_request builds an OFPMP_TABLE request."""
+        request = build_table_stats_request()
+        assert request.multipart_type == MultipartType.OFPMP_TABLE
+        assert request.header.xid is not None
