@@ -64,60 +64,6 @@ def build_table_stats_request():
     return multipart_request
 
 
-def update_flow_list(controller, switch):
-    """Request flow stats from switches.
-
-    Args:
-        controller(:class:`~kytos.core.controller.Controller`):
-            the controller being used.
-        switch(:class:`~kytos.core.switch.Switch`):
-            target to send a stats request.
-
-    Returns:
-        int: multipart request xid
-
-    """
-    multipart_request = build_flow_stats_request()
-    emit_message_out(controller, switch.connection, multipart_request)
-    return multipart_request.header.xid
-
-
-def request_port_stats(controller, switch):
-    """Request port stats from switches.
-
-    Args:
-        controller(:class:`~kytos.core.controller.Controller`):
-            the controller being used.
-        switch(:class:`~kytos.core.switch.Switch`):
-            target to send a stats request.
-
-    Returns:
-        int: multipart request xid
-
-    """
-    multipart_request = build_port_stats_request()
-    emit_message_out(controller, switch.connection, multipart_request)
-    return multipart_request.header.xid
-
-
-def request_table_stats(controller, switch):
-    """Request table stats from switches.
-
-    Args:
-        controller(:class:`~kytos.core.controller.Controller`):
-            the controller being used.
-        switch(:class:`~kytos.core.switch.Switch`):
-            target to send a stats request.
-
-    Returns:
-        int: multipart request xid
-
-    """
-    multipart_request = build_table_stats_request()
-    emit_message_out(controller, switch.connection, multipart_request)
-    return multipart_request.header.xid
-
-
 def send_desc_request(controller, switch):
     """Request vendor-specific switch description.
 
