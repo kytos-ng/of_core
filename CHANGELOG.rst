@@ -18,6 +18,7 @@ Fixed
 =====
 
 - Popped xid seq nums after use to avoid unbounded mem growth
+- Fixed a race on ``_multipart_replies_xids`` where a fast switch reply could be discarded and cause repeated overlapping stats requests. Multipart requests are now built and their xids saved before the messages are emitted, and a per-switch lock serializes concurrent stats requests (#170)
 
 [2025.2.0] - 2026-02-02
 ***********************

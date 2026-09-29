@@ -518,10 +518,13 @@ class TestNApp:
         napp._multipart_replies_xids[dpid] = {"flows": 2, "ports": 3}
         napp._multipart_replies_flows[dpid] = [MagicMock()]
         napp._multipart_replies_ports[dpid] = [MagicMock()]
+        _ = napp._multipart_lock[dpid]
+        assert dpid in napp._multipart_lock
         await napp.on_openflow_connection_error(event)
         assert dpid not in napp._multipart_replies_xids
         assert dpid not in napp._multipart_replies_flows
         assert dpid not in napp._multipart_replies_ports
+        assert dpid not in napp._multipart_lock
 
     async def test_on_openflow_connection_error_no_sw(self, napp) -> None:
         """Test on_openflow_connection_error no switch."""
@@ -598,14 +601,19 @@ class TestNApp:
     async def test_on_openflow_connection_lost_pops_connection_lock(
         self, napp
     ) -> None:
-        """on_openflow_connection_lost should drop the per-connection lock."""
+        """on_openflow_connection_lost should drop the per-connection lock and
+        the per-switch multipart lock."""
         event = MagicMock()
         connection = event.content["source"]
         connection.id = ("192.0.2.1", 54321)
+        connection.switch = MagicMock(id="00:00:00:00:00:00:00:01")
         _ = napp._connection_lock[connection.id]
+        _ = napp._multipart_lock[connection.switch.id]
         assert connection.id in napp._connection_lock
+        assert connection.switch.id in napp._multipart_lock
         await napp.on_openflow_connection_lost(event)
         assert connection.id not in napp._connection_lock
+        assert connection.switch.id not in napp._multipart_lock
 
 
 # pylint: disable=attribute-defined-outside-init
@@ -718,52 +726,80 @@ class TestMain:
         assert self.napp._get_switch_req_stats_delay(mock_sw2) == 6
 
     @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.of_core.main.emit_message_out')
     @patch('napps.kytos.of_core.main.Main.'
            '_check_overlapping_multipart_request')
-    @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
-    @patch('napps.kytos.of_core.v0x04.utils.request_table_stats')
+    @patch('napps.kytos.of_core.v0x04.utils.build_table_stats_request')
+    @patch('napps.kytos.of_core.v0x04.utils.build_port_stats_request')
+    @patch('napps.kytos.of_core.v0x04.utils.build_flow_stats_request')
     def test_request_stats(self, *args):
-        """Test request flow list."""
-        (mock_request_table_stats_v0x4, mock_update_flow_list_v0x04,
-            mock_check_overlapping_multipart_request, _) = args
-        mock_update_flow_list_v0x04.return_value = 0xABC
-        mock_check_overlapping_multipart_request.return_value = False
+        """Test request flow list.
+
+        The xids must be recorded before any request is emitted, so a fast
+        switch reply is never discarded by ``_is_multipart_reply_ours``
+        (issue #170).
+        """
+        (mock_build_flows, mock_build_ports, mock_build_tables,
+            mock_check_overlapping, mock_emit, _) = args
+        dpid = self.switch_v0x04.id
+        mock_build_flows.return_value = MagicMock(header=MagicMock(xid=0xABC))
+        mock_build_ports.return_value = MagicMock(header=MagicMock(xid=0xDEF))
+        mock_build_tables.return_value = MagicMock(header=MagicMock(xid=0x123))
+        mock_check_overlapping.return_value = False
+
+        # Capture the recorded xids at the moment the first request is emitted.
+        seen_at_emit = {}
+
+        def _capture_state(*_args, **_kwargs):
+            if not seen_at_emit:
+                seen_at_emit.update(
+                    self.napp._multipart_replies_xids.get(dpid, {}))
+        mock_emit.side_effect = _capture_state
+
         self.switch_v0x04 = self._add_features_switch(self.switch_v0x04)
         self.napp._request_stats(self.switch_v0x04)
-        mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
-                                                       self.switch_v0x04)
-        mock_request_table_stats_v0x4.return_value = 0xABC
-        mock_request_table_stats_v0x4.assert_called_with(self.napp.controller,
-                                                         self.switch_v0x04)
 
-        mock_update_flow_list_v0x04.call_count = 0
-        mock_check_overlapping_multipart_request.return_value = True
+        expected = {'flows': 0xABC, 'ports': 0xDEF, 'tables': 0x123}
+        assert seen_at_emit == expected
+        assert self.napp._multipart_replies_xids[dpid] == expected
+        assert mock_emit.call_count == 3
+
+        mock_build_flows.reset_mock()
+        mock_emit.reset_mock()
+        mock_check_overlapping.return_value = True
         self.napp._request_stats(self.switch_v0x04)
-        mock_update_flow_list_v0x04.assert_not_called()
+        mock_build_flows.assert_not_called()
+        mock_emit.assert_not_called()
 
     @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.of_core.main.emit_message_out')
     @patch('napps.kytos.of_core.main.Main.'
            '_check_overlapping_multipart_request')
-    @patch('napps.kytos.of_core.v0x04.utils.request_table_stats')
+    @patch('napps.kytos.of_core.v0x04.utils.build_table_stats_request')
+    @patch('napps.kytos.of_core.v0x04.utils.build_port_stats_request')
+    @patch('napps.kytos.of_core.v0x04.utils.build_flow_stats_request')
     def test_request_stats_no_capabilities_for_table(self, *args):
-        """Test request flow list."""
-        (mock_request_table_stats_v0x4,
-            mock_check_overlapping_multipart_request, _) = args
-        mock_check_overlapping_multipart_request.return_value = False
+        """Test request flow list without table stats capability."""
+        (mock_build_flows, mock_build_ports, mock_build_tables,
+            mock_check_overlapping, mock_emit, _) = args
+        mock_build_flows.return_value = MagicMock(header=MagicMock(xid=0xABC))
+        mock_build_ports.return_value = MagicMock(header=MagicMock(xid=0xDEF))
+        mock_check_overlapping.return_value = False
         self.napp._request_stats(self.switch_v0x04)
-        mock_request_table_stats_v0x4.return_value = 0xABC
-        mock_request_table_stats_v0x4.assert_not_called()
+        mock_build_tables.assert_not_called()
+        assert mock_emit.call_count == 2
 
     @patch('time.sleep', return_value=None)
-    @patch('napps.kytos.of_core.v0x04.utils.update_flow_list')
+    @patch('napps.kytos.of_core.main.emit_message_out')
+    @patch('napps.kytos.of_core.v0x04.utils.build_flow_stats_request')
     def test_on_handshake_completed_request_stats(self, *args):
-        """Test request flow list."""
-        (mock_update_flow_list_v0x04, _) = args
-        mock_update_flow_list_v0x04.return_value = 0xABC
+        """Test request flow list right after handshake completes."""
+        (mock_build_flows, mock_emit, _) = args
+        mock_build_flows.return_value = MagicMock(header=MagicMock(xid=0xABC))
         sw = self._add_features_switch(self.switch_v0x04)
         self.napp.handle_handshake_completed_request_stats(sw)
-        mock_update_flow_list_v0x04.assert_called_with(self.napp.controller,
-                                                       self.switch_v0x04)
+        mock_build_flows.assert_called()
+        mock_emit.assert_called()
 
     @patch('napps.kytos.of_core.v0x04.utils.send_set_config')
     @patch('napps.kytos.of_core.v0x04.utils.send_desc_request')

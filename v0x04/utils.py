@@ -23,63 +23,45 @@ def try_to_activate_interface(interface, port):
     return interface
 
 
-def update_flow_list(controller, switch):
-    """Request flow stats from switches.
+def build_flow_stats_request():
+    """Build a flow stats multipart request.
 
-    Args:
-        controller(:class:`~kytos.core.controller.Controller`):
-            the controller being used.
-        switch(:class:`~kytos.core.switch.Switch`):
-            target to send a stats request.
+    The message header xid is assigned at construction time, so the caller
+    can record it before emitting the message (see issue #170).
 
     Returns:
-        int: multipart request xid
+        MultipartRequest: the flow stats request message
 
     """
     multipart_request = MultipartRequest()
     multipart_request.multipart_type = MultipartType.OFPMP_FLOW
     multipart_request.body = FlowStatsRequest()
-    emit_message_out(controller, switch.connection, multipart_request)
-    return multipart_request.header.xid
+    return multipart_request
 
 
-def request_port_stats(controller, switch):
-    """Request port stats from switches.
-
-    Args:
-        controller(:class:`~kytos.core.controller.Controller`):
-            the controller being used.
-        switch(:class:`~kytos.core.switch.Switch`):
-            target to send a stats request.
+def build_port_stats_request():
+    """Build a port stats multipart request.
 
     Returns:
-        int: multipart request xid
+        MultipartRequest: the port stats request message
 
     """
     multipart_request = MultipartRequest()
     multipart_request.multipart_type = MultipartType.OFPMP_PORT_STATS
     multipart_request.body = PortStatsRequest()
-    emit_message_out(controller, switch.connection, multipart_request)
-    return multipart_request.header.xid
+    return multipart_request
 
 
-def request_table_stats(controller, switch):
-    """Request table stats from switches.
-
-    Args:
-        controller(:class:`~kytos.core.controller.Controller`):
-            the controller being used.
-        switch(:class:`~kytos.core.switch.Switch`):
-            target to send a stats request.
+def build_table_stats_request():
+    """Build a table stats multipart request.
 
     Returns:
-        int: multipart request xid
+        MultipartRequest: the table stats request message
 
     """
     multipart_request = MultipartRequest()
     multipart_request.multipart_type = MultipartType.OFPMP_TABLE
-    emit_message_out(controller, switch.connection, multipart_request)
-    return multipart_request.header.xid
+    return multipart_request
 
 
 def send_desc_request(controller, switch):
