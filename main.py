@@ -49,11 +49,6 @@ class Main(KytosNApp):
         self.of_core_version_utils = {0x04: of_core_v0x04_utils}
         self.execute_as_loop(settings.STATS_INTERVAL)
         self._connection_lock = defaultdict(asyncio.Lock)
-
-        # Per-switch lock serializing multipart stats requests.
-        # ``_request_stats`` runs on a thread and reads/writes shared
-        # state (``_multipart_replies_*``), so concurrent requests for
-        # the same switch must not interleave.
         self._multipart_lock = defaultdict(threading.Lock)
 
         # Message types that will be sequenced counted
@@ -131,10 +126,6 @@ class Main(KytosNApp):
             if self._check_overlapping_multipart_request(switch):
                 return
 
-            # Build the requests first so their xids (assigned at construction)
-            # can be recorded *before* the messages are emitted. Emitting first
-            # would let a fast switch reply before ``_is_multipart_reply_ours``
-            # knows the xid, discarding the reply (see issue #170).
             requests = [
                 of_core_v0x04_utils.build_flow_stats_request(),
                 of_core_v0x04_utils.build_port_stats_request(),
